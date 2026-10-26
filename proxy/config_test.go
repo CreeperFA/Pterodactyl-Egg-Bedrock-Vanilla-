@@ -75,4 +75,7 @@ func TestDefaultReadinessTimeout(t *testing.T) {
 	if cfg.BackendReadyTimeoutSeconds != 120 {
 		t.Fatalf("backend readiness timeout = %d", cfg.BackendReadyTimeoutSeconds)
 	}
+	if cfg.PublicTransport != transportNetherNet {
+		t.Fatalf("default public transport = %q", cfg.PublicTransport)
+	}
 }

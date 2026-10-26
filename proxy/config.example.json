@@ -1,8 +1,9 @@
 {
   "debug": false,
   "host": "0.0.0.0",
-  "public_transport": "raknet",
+  "public_transport": "nethernet",
   "backend_transport": "nethernet",
+  "ice_servers": ["stun:stun.l.google.com:19302"],
   "server_dir": ".",
   "server_command": ["{executable}"],
   "stop_command": "stop",

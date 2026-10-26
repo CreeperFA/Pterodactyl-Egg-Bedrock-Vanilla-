@@ -1,6 +1,6 @@
 // bedrock-proxy is a launcher and proxy for Minecraft: Bedrock servers. Pterodactyl or Pelican starts this
-// one executable: it exposes one panel-allocated RakNet port and relays players to a NetherNet BDS
-// running inside the same container.
+// one executable: it exposes NetherNet over one panel allocation (TCP signaling and multiplexed UDP)
+// and relays players to a NetherNet BDS running inside the same container.
 package main
 
 import (
@@ -27,6 +27,10 @@ func main() {
 		level = slog.LevelDebug
 	}
 	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+	if transport, migrated := effectivePublicTransport(cfg.PublicTransport); migrated {
+		log.Warn("public_transport=raknet is obsolete for Bedrock 1.26.60+; automatically migrating the public listener to nethernet", "override", "set BEDROCK_PROXY_LEGACY_RAKNET=1 only for old clients")
+		cfg.PublicTransport = transport
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

@@ -25,8 +25,8 @@ type Config struct {
 	// StopTimeoutSeconds is how long the server gets to exit after StopCommand before it is killed.
 	StopTimeoutSeconds flexInt `json:"stop_timeout_seconds"`
 
-	// PublicTransport is what players connect with: "raknet" (default, one UDP port) or "nethernet"
-	// (TCP signaling + WebRTC UDP on the same port number).
+	// PublicTransport is what players connect with: "nethernet" (default, TCP signaling and multiplexed
+	// UDP on one port number) or legacy "raknet".
 	PublicTransport string `json:"public_transport"`
 	// BackendTransport is how the proxy talks to the server: "nethernet" (default, what current BDS
 	// needs; the server must run with online-mode=false) or "raknet" (PocketMine, Dragonfly, ...).
@@ -66,7 +66,7 @@ func defaultConfig() Config {
 		Host:                       "0.0.0.0",
 		ServerDir:                  "server",
 		ServerCommand:              nil,
-		PublicTransport:            "raknet",
+		PublicTransport:            "nethernet",
 		BackendTransport:           "nethernet",
 		Motd:                       "Minecraft Server",
 		MaxPlayers:                 20,

@@ -7,7 +7,7 @@
   "exported_at": "2026-10-26T00:53:26+01:00",
   "name": "Vanilla Bedrock (automatic NetherNet proxy)",
   "author": "parker@parkervcp.com",
-  "description": "Runs current vanilla Bedrock behind an automatic RakNet-to-NetherNet proxy. Only the server's normal public UDP allocation is required; the backend port and ephemeral UDP sockets remain internal and may be reused by every container.",
+  "description": "Runs current vanilla Bedrock behind a single-port NetherNet proxy. One Pterodactyl allocation supplies TCP signaling and multiplexed UDP; backend signaling and ephemeral UDP sockets remain internal and may be reused by every container.",
   "features": [
     "pid_limit"
   ],

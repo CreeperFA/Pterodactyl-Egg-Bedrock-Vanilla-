@@ -74,3 +74,17 @@ func TestValidateConfigRejectsMissingExternalBackend(t *testing.T) {
 		t.Fatalf("expected backend_address error, got %v", err)
 	}
 }
+
+func TestLegacyRakNetConfigMigratesToNetherNet(t *testing.T) {
+	t.Setenv("BEDROCK_PROXY_LEGACY_RAKNET", "")
+	transport, migrated := effectivePublicTransport(transportRakNet)
+	if transport != transportNetherNet || !migrated {
+		t.Fatalf("transport=%q migrated=%v", transport, migrated)
+	}
+
+	t.Setenv("BEDROCK_PROXY_LEGACY_RAKNET", "1")
+	transport, migrated = effectivePublicTransport(transportRakNet)
+	if transport != transportRakNet || migrated {
+		t.Fatalf("legacy override: transport=%q migrated=%v", transport, migrated)
+	}
+}

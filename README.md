@@ -5,12 +5,13 @@ Resuelve la migración de BDS desde RakNet a NetherNet sin asignar manualmente u
 rango UDP diferente a cada servidor.
 
 ```text
-Jugador -- RakNet / 1 puerto UDP público --> proxy -- NetherNet interno --> BDS
+Jugador -- NetherNet / 1 número de puerto TCP+UDP --> proxy -- NetherNet interno --> BDS
 ```
 
 ## Qué automatiza
 
-- Cada servidor usa únicamente su asignación UDP pública normal de Pterodactyl.
+- Cada servidor usa una sola asignación pública de Pterodactyl; NetherNet usa TCP y UDP con el mismo número.
+- Las configuraciones antiguas con `public_transport=raknet` migran automáticamente a NetherNet.
 - Todos los contenedores pueden reutilizar `BACKEND_PORT=19140`; no se publica en el host.
 - El proxy ignora direcciones Docker `172.x.x.x` antiguas y conecta por `127.0.0.1`.
 - `server-udp-ports` queda vacío para que BDS use puertos efímeros dentro del contenedor.
@@ -23,7 +24,7 @@ Jugador -- RakNet / 1 puerto UDP público --> proxy -- NetherNet interno --> BDS
 
 1. Descarga `egg-vanilla-bedrock-proxy.json` desde la última release.
 2. En Pterodactyl, ve a **Nests → Import Egg** e importa el JSON.
-3. Crea el servidor con una sola asignación UDP pública.
+3. Crea el servidor con una sola asignación pública. El nodo debe permitir TCP y UDP para ese número.
 4. Conserva `BACKEND_PORT=19140`. No añadas asignaciones para ese puerto ni rangos UDP.
 
 El instalador descarga automáticamente la versión actual de BDS y el binario Linux amd64
@@ -35,6 +36,9 @@ Reinstala el servidor desde el panel o sustituye `bedrock-proxy-linux` por el bi
 release. Los mundos, permisos, allowlists y propiedades ajenas a la red se conservan. Una
 configuración vieja con `backend_address=http://172...` o un rango manual no bloquea la
 migración: el proxy los corrige al arrancar y deja una advertencia clara en consola.
+
+Bedrock 1.26.60+ ya no debe depender del fallback RakNet. Para una reversión temporal con clientes
+anteriores puede definirse `BEDROCK_PROXY_LEGACY_RAKNET=1`, pero no se recomienda en producción.
 
 ## Desarrollo
 

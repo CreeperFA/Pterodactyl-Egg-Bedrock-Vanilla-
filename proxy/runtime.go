@@ -8,9 +8,20 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
+
+// effectivePublicTransport migrates configurations created before Bedrock 1.26.60, when clients
+// could still fall back to RakNet. The environment escape hatch is deliberately explicit so an old
+// config cannot silently strand updated clients.
+func effectivePublicTransport(configured string) (transport string, migrated bool) {
+	if configured == transportRakNet && os.Getenv("BEDROCK_PROXY_LEGACY_RAKNET") != "1" {
+		return transportNetherNet, true
+	}
+	return configured, false
+}
 
 func validateConfig(cfg *Config) error {
 	cfg.PublicTransport = strings.ToLower(strings.TrimSpace(cfg.PublicTransport))
