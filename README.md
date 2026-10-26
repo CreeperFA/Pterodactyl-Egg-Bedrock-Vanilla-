@@ -1,0 +1,1 @@
+# Pterodactyl-Egg-Bedrock-Vanilla-
