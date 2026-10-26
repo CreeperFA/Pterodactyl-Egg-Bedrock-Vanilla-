@@ -6,12 +6,73 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 )
+
+var publicIPDiscoveryURLs = []string{
+	"https://api4.ipify.org",
+	"https://checkip.amazonaws.com",
+}
+
+func usableIP(value string, requirePublic bool) string {
+	ip := net.ParseIP(strings.TrimSpace(value))
+	if ip == nil || ip.IsUnspecified() || ip.IsLoopback() || ip.IsMulticast() {
+		return ""
+	}
+	if requirePublic && (ip.IsPrivate() || ip.IsLinkLocalUnicast()) {
+		return ""
+	}
+	return ip.String()
+}
+
+// resolvePublicIP finds the address that must be written into the public ICE host candidate. The
+// explicit config/environment forms also permit a private address for deliberate LAN deployments;
+// automatically supplied SERVER_IP and discovered addresses must be publicly routable.
+func resolvePublicIP(ctx context.Context, cfg Config) (ip, source string, err error) {
+	for _, candidate := range []struct {
+		value  string
+		source string
+	}{
+		{cfg.PublicIP, "config.public_ip"},
+		{os.Getenv("PUBLIC_IP"), "PUBLIC_IP"},
+	} {
+		if strings.TrimSpace(candidate.value) == "" {
+			continue
+		}
+		if parsed := usableIP(candidate.value, false); parsed != "" {
+			return parsed, candidate.source, nil
+		}
+		return "", "", fmt.Errorf("%s is not a valid advertisable IP address: %q", candidate.source, candidate.value)
+	}
+	if parsed := usableIP(os.Getenv("SERVER_IP"), true); parsed != "" {
+		return parsed, "SERVER_IP", nil
+	}
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	for _, endpoint := range publicIPDiscoveryURLs {
+		req, requestErr := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+		if requestErr != nil {
+			continue
+		}
+		resp, requestErr := client.Do(req)
+		if requestErr != nil {
+			continue
+		}
+		body, readErr := io.ReadAll(io.LimitReader(resp.Body, 128))
+		_ = resp.Body.Close()
+		if readErr == nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			if parsed := usableIP(string(body), true); parsed != "" {
+				return parsed, endpoint, nil
+			}
+		}
+	}
+	return "", "", errors.New("could not determine a public IP; set PUBLIC_IP to the node's public IPv4 address")
+}
 
 // effectivePublicTransport migrates configurations created before Bedrock 1.26.60, when clients
 // could still fall back to RakNet. The environment escape hatch is deliberately explicit so an old

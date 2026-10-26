@@ -12,6 +12,8 @@ Jugador -- NetherNet / 1 número de puerto TCP+UDP --> proxy -- NetherNet intern
 
 - Cada servidor usa una sola asignación pública de Pterodactyl; NetherNet usa TCP y UDP con el mismo número.
 - Las configuraciones antiguas con `public_transport=raknet` migran automáticamente a NetherNet.
+- El candidato ICE anuncia automáticamente `SERVER_IP` sobre el mismo puerto UDP del panel; si la
+  asignación usa `0.0.0.0`, el proxy descubre la IPv4 pública o permite fijarla con `PUBLIC_IP`.
 - Todos los contenedores pueden reutilizar `BACKEND_PORT=19140`; no se publica en el host.
 - El proxy ignora direcciones Docker `172.x.x.x` antiguas y conecta por `127.0.0.1`.
 - `server-udp-ports` queda vacío para que BDS use puertos efímeros dentro del contenedor.
@@ -19,6 +21,8 @@ Jugador -- NetherNet / 1 número de puerto TCP+UDP --> proxy -- NetherNet intern
   `enable-lan-visibility=false`.
 - Espera a que `/v1/join` responda antes de aceptar jugadores.
 - Mantiene estable `identity.key` entre reinicios.
+- Registra por jugador el tiempo de conexión, la duración y los paquetes en cada dirección para
+  distinguir demora de handshake, red y saturación del proceso.
 
 ## Instalación
 
@@ -26,6 +30,10 @@ Jugador -- NetherNet / 1 número de puerto TCP+UDP --> proxy -- NetherNet intern
 2. En Pterodactyl, ve a **Nests → Import Egg** e importa el JSON.
 3. Crea el servidor con una sola asignación pública. El nodo debe permitir TCP y UDP para ese número.
 4. Conserva `BACKEND_PORT=19140`. No añadas asignaciones para ese puerto ni rangos UDP.
+
+En nodos con una asignación IP real no hace falta completar nada más. Si la asignación del nodo usa
+`0.0.0.0`, el proxy intenta descubrir la IPv4 pública. En servidores multi-IP o detrás de NAT configura
+`PUBLIC_IP` con la dirección concreta que recibe el tráfico de esa asignación.
 
 El instalador descarga automáticamente la versión actual de BDS y el binario Linux amd64
 del proxy desde esta misma release.

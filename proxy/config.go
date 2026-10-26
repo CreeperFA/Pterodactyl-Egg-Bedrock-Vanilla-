@@ -54,6 +54,9 @@ type Config struct {
 
 	// ICEServers are STUN/TURN URLs offered to clients, needed when the host is behind NAT.
 	ICEServers []string `json:"ice_servers"`
+	// PublicIP is advertised in public NetherNet ICE candidates. Empty uses PUBLIC_IP, then
+	// Pterodactyl's SERVER_IP, then an external IPv4 discovery service.
+	PublicIP string `json:"public_ip"`
 	// BackendReadyTimeoutSeconds is how long a managed NetherNet server gets to expose its signaling
 	// endpoint before the public listener is started.
 	BackendReadyTimeoutSeconds flexInt `json:"backend_ready_timeout_seconds"`

@@ -101,6 +101,16 @@
       "field_type": "text"
     },
     {
+      "name": "Public IP override",
+      "description": "Optional public IPv4 address advertised by NetherNet ICE. Leave empty to use Pterodactyl SERVER_IP or automatic discovery. Set this only when the node is behind NAT or its allocation IP is 0.0.0.0.",
+      "env_variable": "PUBLIC_IP",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|ip",
+      "field_type": "text"
+    },
+    {
       "name": "Backend Port",
       "description": "Internal-only BDS signaling port. Keep the default: Docker network isolation lets every container reuse 19140. Do not create a Pterodactyl allocation for it.",
       "env_variable": "BACKEND_PORT",

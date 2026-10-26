@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/df-mc/go-nethernet"
@@ -46,7 +47,7 @@ func (s *netherNetServer) Close() error {
 
 // newNetherNet builds the signaling endpoint on TCP host:port and a minecraft.Network whose WebRTC media
 // all flows through UDP port (the same number), so a single allocated port is enough.
-func newNetherNet(host string, port int, iceURLs []string, key *ecdsa.PrivateKey, log *slog.Logger) (minecraft.Network, *netherNetServer, error) {
+func newNetherNet(host string, publicIP string, port int, iceURLs []string, key *ecdsa.PrivateKey, log *slog.Logger) (minecraft.Network, *netherNetServer, error) {
 	// Link-local addresses (fe80::/10, 169.254/16) often cannot be bound inside containers, so skip them.
 	mux, err := ice.NewMultiUDPMuxFromPort(port, ice.UDPMuxFromPortWithIPFilter(func(ip net.IP) bool {
 		return !ip.IsLinkLocalUnicast() && !ip.IsLinkLocalMulticast()
@@ -56,6 +57,10 @@ func newNetherNet(host string, port int, iceURLs []string, key *ecdsa.PrivateKey
 	}
 	settings := webrtc.SettingEngine{}
 	settings.SetICEUDPMux(mux)
+	// A regular server-reflexive candidate gathered through STUN uses another ephemeral socket in
+	// Pion. Pterodactyl does not publish that socket. Rewriting the mux host candidate makes the SDP
+	// advertise the node's public IP with the one allocated UDP port instead.
+	settings.SetNAT1To1IPs([]string{publicIP}, webrtc.ICECandidateTypeHost)
 
 	var servers []nethernet.ICEServer
 	if len(iceURLs) > 0 {
@@ -115,7 +120,11 @@ func runProxy(ctx context.Context, cfg Config, backend string, log *slog.Logger)
 	var l *minecraft.Listener
 	switch cfg.PublicTransport {
 	case transportNetherNet:
-		network, nn, err := newNetherNet(cfg.Host, port, cfg.ICEServers, key, log)
+		publicIP, source, err := resolvePublicIP(ctx, cfg)
+		if err != nil {
+			return fmt.Errorf("public NetherNet address: %w", err)
+		}
+		network, nn, err := newNetherNet(cfg.Host, publicIP, port, cfg.ICEServers, key, log)
 		if err != nil {
 			return err
 		}
@@ -125,7 +134,7 @@ func runProxy(ctx context.Context, cfg Config, backend string, log *slog.Logger)
 		}
 		// The signaling handler rejects offers until the listener is registered, so serve only now.
 		go func() { _ = nn.http.Serve(nn.tcp) }()
-		log.Info("proxy listening", "public", "nethernet", "tcp", port, "udp", port, "backend", backend)
+		log.Info("proxy listening", "public", "nethernet", "tcp", port, "udp", port, "advertised_ip", publicIP, "ip_source", source, "backend", backend)
 	default:
 		if l, err = lc.Listen(transportRakNet, addr); err != nil {
 			return fmt.Errorf("listen: %w", err)
@@ -165,6 +174,7 @@ func dialBackend(ctx context.Context, cfg Config, backend string, key *ecdsa.Pri
 
 // handlePlayer connects one player to the backend, presenting the identity the proxy already verified.
 func handlePlayer(ctx context.Context, client *minecraft.Conn, cfg Config, backend string, key *ecdsa.PrivateKey, log *slog.Logger) {
+	started := time.Now()
 	id := client.IdentityData()
 	log.Info("player connecting", "player", id.DisplayName, "xuid", id.XUID, "addr", client.RemoteAddr(), "backend", backend)
 	log = log.With("player", id.DisplayName, "xuid", id.XUID)
@@ -183,6 +193,7 @@ func handlePlayer(ctx context.Context, client *minecraft.Conn, cfg Config, backe
 		return
 	}
 	defer server.Close()
+	log.Info("backend transport connected", "dial_time", time.Since(started).Round(time.Millisecond))
 
 	var wg sync.WaitGroup
 	var startErr, spawnErr error
@@ -194,11 +205,14 @@ func handlePlayer(ctx context.Context, client *minecraft.Conn, cfg Config, backe
 		log.Error("join failed", "err", err)
 		return
 	}
-	log.Info("player joined")
-	defer log.Info("player left")
+	log.Info("player joined", "join_time", time.Since(started).Round(time.Millisecond))
+	var clientPackets, serverPackets atomic.Uint64
+	defer func() {
+		log.Info("player left", "session_duration", time.Since(started).Round(time.Second), "client_packets", clientPackets.Load(), "server_packets", serverPackets.Load())
+	}()
 
 	done := make(chan struct{}, 2)
-	relay := func(from, to *minecraft.Conn) {
+	relay := func(from, to *minecraft.Conn, packets *atomic.Uint64) {
 		defer func() { done <- struct{}{} }()
 		for {
 			pk, err := from.ReadPacket()
@@ -212,10 +226,11 @@ func handlePlayer(ctx context.Context, client *minecraft.Conn, cfg Config, backe
 			if err := to.WritePacket(pk); err != nil {
 				return
 			}
+			packets.Add(1)
 		}
 	}
-	go relay(client, server)
-	go relay(server, client)
+	go relay(client, server, &clientPackets)
+	go relay(server, client, &serverPackets)
 	select {
 	case <-done:
 	case <-ctx.Done():

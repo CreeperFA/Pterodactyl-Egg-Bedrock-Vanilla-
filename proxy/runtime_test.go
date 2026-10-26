@@ -88,3 +88,21 @@ func TestLegacyRakNetConfigMigratesToNetherNet(t *testing.T) {
 		t.Fatalf("legacy override: transport=%q migrated=%v", transport, migrated)
 	}
 }
+
+func TestResolvePublicIPPrecedence(t *testing.T) {
+	t.Setenv("PUBLIC_IP", "198.51.100.20")
+	t.Setenv("SERVER_IP", "198.51.100.30")
+	ip, source, err := resolvePublicIP(context.Background(), Config{PublicIP: "192.0.2.10"})
+	if err != nil || ip != "192.0.2.10" || source != "config.public_ip" {
+		t.Fatalf("ip=%q source=%q err=%v", ip, source, err)
+	}
+}
+
+func TestResolvePublicIPUsesPterodactylAllocation(t *testing.T) {
+	t.Setenv("PUBLIC_IP", "")
+	t.Setenv("SERVER_IP", "203.0.113.40")
+	ip, source, err := resolvePublicIP(context.Background(), Config{})
+	if err != nil || ip != "203.0.113.40" || source != "SERVER_IP" {
+		t.Fatalf("ip=%q source=%q err=%v", ip, source, err)
+	}
+}
