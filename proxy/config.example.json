@@ -1,0 +1,21 @@
+{
+  "debug": false,
+  "host": "0.0.0.0",
+  "public_transport": "raknet",
+  "backend_transport": "nethernet",
+  "server_dir": ".",
+  "server_command": ["{executable}"],
+  "stop_command": "stop",
+  "backend_ready_timeout_seconds": 120,
+  "backend_port": "{backend_port}",
+  "properties": {
+    "server-port": "{port}",
+    "online-mode": "false",
+    "allow-list": "false",
+    "enable-lan-visibility": "false",
+    "transport": "nethernet",
+    "server-udp-ports": ""
+  },
+  "motd": "{servername}",
+  "max_players": "{max_players}"
+}

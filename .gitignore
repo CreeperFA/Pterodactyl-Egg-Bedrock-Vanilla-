@@ -1,0 +1,6 @@
+bedrock-proxy-linux-amd64
+bedrock-proxy-linux-arm64
+bedrock-proxy-windows-amd64.exe
+dist/
+proxy/config.json
+proxy/identity.key

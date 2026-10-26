@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag, for example v1.2.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: proxy/go.mod
+          cache-dependency-path: proxy/go.sum
+      - name: Test
+        working-directory: proxy
+        run: go test ./...
+      - name: Vet
+        working-directory: proxy
+        run: go vet ./...
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64, name: bedrock-proxy-linux-amd64 }
+          - { goos: linux, goarch: arm64, name: bedrock-proxy-linux-arm64 }
+          - { goos: windows, goarch: amd64, name: bedrock-proxy-windows-amd64.exe }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: proxy/go.mod
+          cache-dependency-path: proxy/go.sum
+      - name: Build
+        working-directory: proxy
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: go build -trimpath -ldflags "-s -w" -o "${{ github.workspace }}/${{ matrix.name }}" .
+      - uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Add deployment files and checksums
+        run: |
+          cp egg-vanilla-bedrock-proxy.json dist/
+          cp proxy/config.example.json dist/config.example.json
+          cd dist
+          sha256sum bedrock-proxy-* egg-vanilla-bedrock-proxy.json config.example.json > SHA256SUMS
+      - name: Publish release
+        run: |
+          gh release create "$TAG" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --generate-notes
