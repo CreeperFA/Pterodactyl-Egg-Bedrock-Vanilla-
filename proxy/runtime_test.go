@@ -106,3 +106,29 @@ func TestResolvePublicIPUsesPterodactylAllocation(t *testing.T) {
 		t.Fatalf("ip=%q source=%q err=%v", ip, source, err)
 	}
 }
+
+func TestICECredentialsAddOptionalTURNFallback(t *testing.T) {
+	t.Setenv("TURN_URLS", "turn:relay.example.com:3478?transport=udp, turns:relay.example.com:5349?transport=tcp")
+	t.Setenv("TURN_USERNAME", "bedrock")
+	t.Setenv("TURN_PASSWORD", "secret")
+	creds, enabled, err := iceCredentials(defaultConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !enabled || len(creds.ICEServers) != 2 {
+		t.Fatalf("enabled=%v servers=%+v", enabled, creds.ICEServers)
+	}
+	turn := creds.ICEServers[1]
+	if turn.Username != "bedrock" || turn.Password != "secret" || len(turn.URLs) != 2 {
+		t.Fatalf("unexpected TURN configuration: %+v", turn)
+	}
+}
+
+func TestICECredentialsRejectIncompleteTURN(t *testing.T) {
+	t.Setenv("TURN_URLS", "turn:relay.example.com:3478")
+	t.Setenv("TURN_USERNAME", "")
+	t.Setenv("TURN_PASSWORD", "")
+	if _, _, err := iceCredentials(defaultConfig()); err == nil || !strings.Contains(err.Error(), "TURN_USERNAME") {
+		t.Fatalf("expected missing credentials error, got %v", err)
+	}
+}

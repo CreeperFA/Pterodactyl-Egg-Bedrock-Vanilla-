@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -37,6 +38,28 @@ type netherNetServer struct {
 	mux  *ice.MultiUDPMuxDefault
 }
 
+// singleHeaderWriter tolerates handlers that call WriteHeader after Write. net/http has already
+// sent 200 at that point and otherwise emits a misleading "superfluous response.WriteHeader" line.
+type singleHeaderWriter struct {
+	http.ResponseWriter
+	wroteHeader bool
+}
+
+func (w *singleHeaderWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+func (w *singleHeaderWriter) WriteHeader(code int) {
+	if w.wroteHeader {
+		return
+	}
+	w.wroteHeader = true
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *singleHeaderWriter) Write(p []byte) (int, error) {
+	w.wroteHeader = true
+	return w.ResponseWriter.Write(p)
+}
+
 func (s *netherNetServer) Close() error {
 	err := s.http.Close()
 	if e := s.tcp.Close(); e != nil && !errors.Is(e, net.ErrClosed) {
@@ -47,7 +70,7 @@ func (s *netherNetServer) Close() error {
 
 // newNetherNet builds the signaling endpoint on TCP host:port and a minecraft.Network whose WebRTC media
 // all flows through UDP port (the same number), so a single allocated port is enough.
-func newNetherNet(host string, publicIP string, port int, iceURLs []string, key *ecdsa.PrivateKey, log *slog.Logger) (minecraft.Network, *netherNetServer, error) {
+func newNetherNet(host string, publicIP string, port int, creds *nethernet.Credentials, key *ecdsa.PrivateKey, log *slog.Logger) (minecraft.Network, *netherNetServer, error) {
 	// Link-local addresses (fe80::/10, 169.254/16) often cannot be bound inside containers, so skip them.
 	mux, err := ice.NewMultiUDPMuxFromPort(port, ice.UDPMuxFromPortWithIPFilter(func(ip net.IP) bool {
 		return !ip.IsLinkLocalUnicast() && !ip.IsLinkLocalMulticast()
@@ -62,11 +85,6 @@ func newNetherNet(host string, publicIP string, port int, iceURLs []string, key 
 	// advertise the node's public IP with the one allocated UDP port instead.
 	settings.SetNAT1To1IPs([]string{publicIP}, webrtc.ICECandidateTypeHost)
 
-	var servers []nethernet.ICEServer
-	if len(iceURLs) > 0 {
-		servers = []nethernet.ICEServer{{URLs: iceURLs}}
-	}
-	creds := &nethernet.Credentials{ICEServers: servers}
 	handler := endpoint.HandlerConfig{
 		Logger:      log,
 		Credentials: func(context.Context) (*nethernet.Credentials, error) { return creds, nil },
@@ -87,11 +105,53 @@ func newNetherNet(host string, publicIP string, port int, iceURLs []string, key 
 		},
 	}
 	srv := &netherNetServer{
-		http: &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second},
-		tcp:  tcp,
-		mux:  mux,
+		http: &http.Server{
+			Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				handler.ServeHTTP(&singleHeaderWriter{ResponseWriter: w}, r)
+			}),
+			ReadHeaderTimeout: 10 * time.Second,
+		},
+		tcp: tcp,
+		mux: mux,
 	}
 	return network, srv, nil
+}
+
+// iceCredentials combines unauthenticated STUN with an optional authenticated TURN fallback.
+// Environment variables intentionally take precedence so an imported egg can enable TURN for old
+// installations without overwriting their config.json.
+func iceCredentials(cfg Config) (*nethernet.Credentials, bool, error) {
+	servers := make([]nethernet.ICEServer, 0, 2)
+	if len(cfg.ICEServers) > 0 {
+		servers = append(servers, nethernet.ICEServer{URLs: cfg.ICEServers})
+	}
+
+	turnURLs := cfg.TURNURLs
+	if value := strings.TrimSpace(os.Getenv("TURN_URLS")); value != "" {
+		turnURLs = strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ';' })
+	}
+	username := cfg.TURNUsername
+	if value := os.Getenv("TURN_USERNAME"); value != "" {
+		username = value
+	}
+	password := cfg.TURNPassword
+	if value := os.Getenv("TURN_PASSWORD"); value != "" {
+		password = value
+	}
+	for i := range turnURLs {
+		turnURLs[i] = strings.TrimSpace(turnURLs[i])
+	}
+	turnEnabled := len(turnURLs) > 0
+	if turnEnabled && (strings.TrimSpace(username) == "" || password == "") {
+		return nil, false, errors.New("TURN_URLS requires both TURN_USERNAME and TURN_PASSWORD")
+	}
+	if !turnEnabled && (strings.TrimSpace(username) != "" || password != "") {
+		return nil, false, errors.New("TURN_USERNAME/TURN_PASSWORD require TURN_URLS")
+	}
+	if turnEnabled {
+		servers = append(servers, nethernet.ICEServer{URLs: turnURLs, Username: username, Password: password})
+	}
+	return &nethernet.Credentials{ExpirationInSeconds: 86400, ICEServers: servers}, turnEnabled, nil
 }
 
 // runProxy accepts players on the public transport and relays each to the backend until ctx is cancelled.
@@ -124,7 +184,11 @@ func runProxy(ctx context.Context, cfg Config, backend string, log *slog.Logger)
 		if err != nil {
 			return fmt.Errorf("public NetherNet address: %w", err)
 		}
-		network, nn, err := newNetherNet(cfg.Host, publicIP, port, cfg.ICEServers, key, log)
+		creds, turnEnabled, err := iceCredentials(cfg)
+		if err != nil {
+			return fmt.Errorf("ICE configuration: %w", err)
+		}
+		network, nn, err := newNetherNet(cfg.Host, publicIP, port, creds, key, log)
 		if err != nil {
 			return err
 		}
@@ -134,7 +198,7 @@ func runProxy(ctx context.Context, cfg Config, backend string, log *slog.Logger)
 		}
 		// The signaling handler rejects offers until the listener is registered, so serve only now.
 		go func() { _ = nn.http.Serve(nn.tcp) }()
-		log.Info("proxy listening", "public", "nethernet", "tcp", port, "udp", port, "advertised_ip", publicIP, "ip_source", source, "backend", backend)
+		log.Info("proxy listening", "public", "nethernet", "tcp", port, "udp", port, "advertised_ip", publicIP, "ip_source", source, "turn_fallback", turnEnabled, "backend", backend)
 	default:
 		if l, err = lc.Listen(transportRakNet, addr); err != nil {
 			return fmt.Errorf("listen: %w", err)

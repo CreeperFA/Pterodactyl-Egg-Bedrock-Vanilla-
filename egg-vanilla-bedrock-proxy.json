@@ -111,6 +111,36 @@
       "field_type": "text"
     },
     {
+      "name": "TURN relay URLs",
+      "description": "Optional shared TURN fallback for players behind symmetric CGNAT or restrictive networks. Comma-separated URLs, for example turn:relay.example.com:3478?transport=udp,turns:relay.example.com:5349?transport=tcp. One relay may be shared by every Bedrock container.",
+      "env_variable": "TURN_URLS",
+      "default_value": "",
+      "user_viewable": false,
+      "user_editable": false,
+      "rules": "nullable|string|max:1000",
+      "field_type": "text"
+    },
+    {
+      "name": "TURN username",
+      "description": "Username for the optional shared TURN relay.",
+      "env_variable": "TURN_USERNAME",
+      "default_value": "",
+      "user_viewable": false,
+      "user_editable": false,
+      "rules": "nullable|string|max:255",
+      "field_type": "text"
+    },
+    {
+      "name": "TURN password",
+      "description": "Password for the optional shared TURN relay. Kept hidden from server users.",
+      "env_variable": "TURN_PASSWORD",
+      "default_value": "",
+      "user_viewable": false,
+      "user_editable": false,
+      "rules": "nullable|string|max:255",
+      "field_type": "text"
+    },
+    {
       "name": "Backend Port",
       "description": "Internal-only BDS signaling port. Keep the default: Docker network isolation lets every container reuse 19140. Do not create a Pterodactyl allocation for it.",
       "env_variable": "BACKEND_PORT",

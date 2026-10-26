@@ -54,6 +54,12 @@ type Config struct {
 
 	// ICEServers are STUN/TURN URLs offered to clients, needed when the host is behind NAT.
 	ICEServers []string `json:"ice_servers"`
+	// TURN supplies the authenticated relay fallback required by symmetric CGNAT and restrictive
+	// networks. Environment variables override these values so an existing config.json need not be
+	// replaced when the Pterodactyl egg is upgraded.
+	TURNURLs     []string `json:"turn_urls"`
+	TURNUsername string   `json:"turn_username"`
+	TURNPassword string   `json:"turn_password"`
 	// PublicIP is advertised in public NetherNet ICE candidates. Empty uses PUBLIC_IP, then
 	// Pterodactyl's SERVER_IP, then an external IPv4 discovery service.
 	PublicIP string `json:"public_ip"`
