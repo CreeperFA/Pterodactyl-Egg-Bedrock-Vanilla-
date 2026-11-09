@@ -1,78 +1,69 @@
-# Bedrock Vanilla para Pterodactyl
+# SuperCores Bedrock para Pterodactyl
 
-Egg de Pterodactyl/Pelican y proxy integrado para Bedrock Dedicated Server 1.26+.
-Resuelve la migración de BDS desde RakNet a NetherNet sin asignar manualmente un
-rango UDP diferente a cada servidor.
+Repositorio del Egg experimental de Minecraft Bedrock Dedicated Server para SuperCores Hosting y del
+modo proxy anterior usado como rollback. La variante nativa ejecuta `bedrock_server` directamente,
+mantiene `online-mode=true` y usa una única asignación de Pterodactyl publicada como TCP y UDP.
 
-```text
-Jugador -- NetherNet / 1 número de puerto TCP+UDP --> proxy -- NetherNet interno --> BDS
-```
+> Estado: **experimental, no aprobado para producción**. La configuración fue validada localmente,
+> pero todavía no se ejecutaron pruebas reales de 2, 5 y 10 clientes en un nodo Wings externo.
 
-## Qué automatiza
+## Artefactos
 
-- Cada servidor usa una sola asignación pública de Pterodactyl; NetherNet usa TCP y UDP con el mismo número.
-- Las configuraciones antiguas con `public_transport=raknet` migran automáticamente a NetherNet.
-- El candidato ICE anuncia automáticamente `SERVER_IP` sobre el mismo puerto UDP del panel; si la
-  asignación usa `0.0.0.0`, el proxy descubre la IPv4 pública o permite fijarla con `PUBLIC_IP`.
-- Admite un relay TURN compartido como fallback para jugadores detrás de CGNAT simétrico o redes
-  restrictivas; las conexiones directas siguen siendo la ruta preferida.
-- Todos los contenedores pueden reutilizar `BACKEND_PORT=19140`; no se publica en el host.
-- El proxy ignora direcciones Docker `172.x.x.x` antiguas y conecta por `127.0.0.1`.
-- `server-udp-ports` queda vacío para que BDS use puertos efímeros dentro del contenedor.
-- Fuerza las propiedades de red requeridas: `transport=nethernet`, `online-mode=false` y
-  `enable-lan-visibility=false`.
-- Espera a que `/v1/join` responda antes de aceptar jugadores.
-- Mantiene estable `identity.key` entre reinicios.
-- Registra por jugador el tiempo de conexión, la duración y los paquetes en cada dirección para
-  distinguir demora de handshake, red y saturación del proceso.
-- Evita el aviso engañoso `superfluous response.WriteHeader` generado por el endpoint de estado.
+- `egg-supercores-bedrock-nethernet.json`: Egg dual, Native NetherNet o Legacy Proxy.
+- `scripts/supercores-start.sh`: detección conservadora de capacidades y configuración idempotente.
+- `scripts/install.sh`: fuente del instalador embebido en el Egg.
+- `tools/build-egg.ps1`: genera el Egg desde las fuentes anteriores.
+- `tools/validate.ps1`: valida JSON, Bash, perfiles stable/preview, backup y check-only.
+- `tools/plan-pterodactyl-migration.ps1`: inventario API exclusivamente dry-run; nunca modifica servidores.
+- `proxy/`: publicador Legacy de la release v1.3.0.
 
-## Instalación
+## Modos
 
-1. Descarga `egg-vanilla-bedrock-proxy.json` desde la última release.
-2. En Pterodactyl, ve a **Nests → Import Egg** e importa el JSON.
-3. Crea el servidor con una sola asignación pública. El nodo debe permitir TCP y UDP para ese número.
-4. Conserva `BACKEND_PORT=19140`. No añadas asignaciones para ese puerto ni rangos UDP.
-
-En nodos con una asignación IP real no hace falta completar nada más. Si la asignación del nodo usa
-`0.0.0.0`, el proxy intenta descubrir la IPv4 pública. En servidores multi-IP o detrás de NAT configura
-`PUBLIC_IP` con la dirección concreta que recibe el tráfico de esa asignación.
-
-### Clientes que reciben `Door` / `InitialConnection-83`
-
-Si el log muestra `start ICE: context deadline exceeded` mientras otros jugadores sí entran, el
-backend y la asignación están funcionando: la red de ese cliente no pudo establecer una ruta UDP
-directa. Configura en el egg `TURN_URLS`, `TURN_USERNAME` y `TURN_PASSWORD` con un relay TURN propio
-o del proveedor. Puede ser un único servicio para todos los contenedores y nodos; no se instala un
-rango nuevo dentro de cada Docker. Es recomendable anunciar UDP y también TLS/TCP, por ejemplo:
+### Native NetherNet
 
 ```text
-TURN_URLS=turn:relay.example.com:3478?transport=udp,turns:relay.example.com:5349?transport=tcp
+Jugador -- TCP+UDP mismo puerto --> BDS oficial
 ```
 
-Las tres variables son administrativas y quedan ocultas a los usuarios. Al arrancar, la línea
-`proxy listening` indica `turn_fallback=true` sin imprimir las credenciales. Un TURN externo es un
-servicio adicional: el egg no puede crear de forma segura credenciales o puertos relay públicos por
-sí solo. Sólo las conexiones que no logren una ruta directa deberían usarlo, por lo que la mayoría
-no incorpora la latencia del relay.
+No termina la sesión del jugador en un proxy y conserva autenticación Xbox/XUID. El script sólo habilita
+este modo si el paquete oficial documenta un puerto UDP compartido. Wings publica cada asignación en ambos
+protocolos con el mismo número según su implementación de bindings.
 
-El instalador descarga automáticamente la versión actual de BDS y el binario Linux amd64
-del proxy desde esta misma release.
+### Legacy Proxy
 
-## Actualización de servidores existentes
+```text
+Jugador -- NetherNet público --> bedrock-proxy -- NetherNet loopback --> BDS
+```
 
-Reinstala el servidor desde el panel o sustituye `bedrock-proxy-linux` por el binario de la
-release. Los mundos, permisos, allowlists y propiedades ajenas a la red se conservan. Una
-configuración vieja con `backend_address=http://172...` o un rango manual no bloquea la
-migración: el proxy los corrige al arrancar y deja una advertencia clara en consola.
+Es un rollback explícito. No se selecciona automáticamente y conserva las limitaciones documentadas de la
+release v1.3.0.
 
-Bedrock 1.26.60+ ya no debe depender del fallback RakNet. Para una reversión temporal con clientes
-anteriores puede definirse `BEDROCK_PROXY_LEGACY_RAKNET=1`, pero no se recomienda en producción.
+## Hallazgo principal, 9 de noviembre de 2026
+
+- La estable disponible es BDS Linux `1.26.63.1`. Su guía incluida admite un puerto compartido y exige
+  anunciar NAT con `server-udp-ports=IP:public:local`.
+- Preview `1.26.70.23` usa `server-public-ip` separado y hace que el UDP predeterminado coincida con
+  `server-port`. Mojang advierte que Preview puede ser inestable.
+- El Egg detecta esas capacidades leyendo `bedrock_server_how_to.html`; no supone que una sintaxis sirve
+  para todas las versiones.
+- BDS-23121 figura cerrado como “Awaiting Response”, no como una prueba pública de corrección. La aceptación
+  final depende de pruebas externas reales.
+
+Fuentes primarias: [Preview 26.70.23](https://www.minecraft.net/da-dk/article/minecraft-preview-26-70-23),
+[changelog estable 26.60](https://feedback.minecraft.net/hc/en-us/articles/49852828563853-Minecraft-Bedrock-Edition-26-60-Changelog),
+[propiedades BDS](https://learn.microsoft.com/en-us/minecraft/creator/documents/bedrockserver/server-properties),
+[bindings de Wings](https://github.com/pterodactyl/wings/blob/develop/environment/allocations.go) y
+[Egg oficial vigente](https://github.com/pterodactyl/game-eggs/blob/main/minecraft/bedrock/bedrock/egg-vanilla-bedrock.json).
+
+Consulta [AUDIT.md](AUDIT.md), [COMPATIBILITY.md](COMPATIBILITY.md), [INSTALLATION.md](INSTALLATION.md),
+[MIGRATION.md](MIGRATION.md), [TEST-REPORT.md](TEST-REPORT.md) y [ROLLBACK.md](ROLLBACK.md) antes de usarlo.
 
 ## Desarrollo
 
-El código Go vive en [`proxy/`](proxy/). La release ejecuta `go test ./...`, `go vet ./...`
-y compila binarios estáticos para Linux amd64, Linux arm64 y Windows amd64.
+```powershell
+./tools/build-egg.ps1
+./tools/validate.ps1
+```
 
-El egg y la automatización raíz se distribuyen bajo la licencia MIT de este repositorio.
-El proxy conserva su licencia original en [`proxy/LICENSE`](proxy/LICENSE).
+El Egg raíz y sus herramientas se distribuyen bajo MIT. El código de `proxy/` conserva su licencia
+original en `proxy/LICENSE`.
