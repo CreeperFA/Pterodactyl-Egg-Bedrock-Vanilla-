@@ -56,6 +56,28 @@ try {
     Invoke-ProfileTest -Name stable -Guide '<h3>Single shared port</h3>' -ExpectedUdp '203.0.113.10:24567:24567' -ExpectedPublic '' -ExpectTransport $true
     Invoke-ProfileTest -Name preview -Guide '<code>server-public-ip</code>' -ExpectedUdp '24567' -ExpectedPublic '203.0.113.10' -ExpectTransport $false
 
+    $labDir = Join-Path $tempRoot 'stable'
+    $marker = Join-Path $labDir '.supercores/lab-offline-approved'
+    [IO.File]::WriteAllText($marker, 'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_OFFLINE_LAB', [Text.Encoding]::ASCII)
+    Push-Location $labDir
+    try {
+        & $bash -c 'env BEDROCK_NETWORK_MODE=native NATIVE_PROFILE=auto PUBLIC_IP=203.0.113.10 SERVER_PORT=24567 EXECUTABLE=./dummy-bds ./supercores-start.sh'
+        if ($LASTEXITCODE) { throw 'offline laboratory profile execution failed' }
+    } finally { Pop-Location }
+    $offlineProperties = Get-Content -LiteralPath (Join-Path $labDir 'server.properties') -Raw
+    if ($offlineProperties -notmatch '(?m)^online-mode=false$') { throw 'offline laboratory marker did not disable online-mode' }
+    if ($offlineProperties -notmatch '(?m)^allow-list=true$') { throw 'offline laboratory marker did not enforce the allowlist' }
+
+    Remove-Item -LiteralPath $marker -Force
+    Push-Location $labDir
+    try {
+        & $bash -c 'env BEDROCK_NETWORK_MODE=native NATIVE_PROFILE=auto PUBLIC_IP=203.0.113.10 SERVER_PORT=24567 EXECUTABLE=./dummy-bds ./supercores-start.sh'
+        if ($LASTEXITCODE) { throw 'Xbox restoration execution failed' }
+    } finally { Pop-Location }
+    $restoredProperties = Get-Content -LiteralPath (Join-Path $labDir 'server.properties') -Raw
+    if ($restoredProperties -notmatch '(?m)^online-mode=true$') { throw 'removing laboratory marker did not restore online-mode=true' }
+    if ($restoredProperties -notmatch '(?m)^allow-list=false$') { throw 'removing laboratory marker did not restore configured allow-list=false' }
+
     $checkDir = Join-Path $tempRoot 'check-only'
     Copy-Item -Recurse -LiteralPath (Join-Path $tempRoot 'stable') -Destination $checkDir
     $before = (Get-FileHash -LiteralPath (Join-Path $checkDir 'server.properties')).Hash
@@ -72,4 +94,4 @@ try {
     }
 }
 
-Write-Host 'Validation passed: egg JSON, shell syntax, stable/preview property profiles, rollback backup, and check-only behavior.'
+Write-Host 'Validation passed: egg JSON, shell syntax, stable/preview profiles, reversible offline laboratory marker, rollback backup, and check-only behavior.'

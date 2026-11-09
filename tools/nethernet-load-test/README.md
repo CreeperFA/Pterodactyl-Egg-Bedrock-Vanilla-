@@ -32,6 +32,24 @@ Para el resultado de referencia use `auth.mode=microsoft`, una cuenta que posea 
 
 El servidor de laboratorio permanece con `online-mode=true`. No ejecute el perfil offline hasta recibir autorización expresa para cambiar temporalmente el laboratorio; esta herramienta no hace ni revierte ese cambio.
 
+### Alternar solamente el laboratorio
+
+El startup experimental reconoce el marcador `.supercores/lab-offline-approved` únicamente cuando contiene exactamente:
+
+```text
+I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_OFFLINE_LAB
+```
+
+Con el marcador, el próximo arranque aplica `online-mode=false`. Al eliminarlo y reiniciar, aplica obligatoriamente `online-mode=true`; no conserva accidentalmente el estado offline. En una copia local del directorio del servidor puede gestionarse con:
+
+```powershell
+.\scripts\lab-auth.ps1 -Mode offline -ServerDirectory C:\ruta\del\servidor
+# ejecutar pruebas y luego:
+.\scripts\lab-auth.ps1 -Mode xbox -ServerDirectory C:\ruta\del\servidor
+```
+
+El marcador no modifica la allowlist. Restrinja el acceso por allowlist o firewall durante toda la ventana offline.
+
 ## Windows con Docker (recomendado)
 
 No instala nada en el nodo de SuperCores. Requiere Docker Desktop en la PC:

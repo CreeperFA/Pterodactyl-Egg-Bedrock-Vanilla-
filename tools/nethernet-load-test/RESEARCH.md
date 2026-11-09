@@ -23,7 +23,7 @@ La documentación del repositorio afirma pruebas live smoke sobre las cuatro bui
 
 - Instalación reproducible del monorepo con pnpm 12.14.0 y lockfile: PASS.
 - Tests upstream seleccionados de transporte HTTP NetherNet, firma de identidad, opciones de autenticación y familias de versión: 12/12 PASS.
-- Tests propios de seguridad/configuración, diagnósticos, informes y conteo posterior a `spawn`: 11/11 PASS.
+- Tests propios de seguridad/configuración, diagnósticos, informes, conteo posterior a `spawn` y continuidad tras desconexión: 12/12 PASS.
 - Sintaxis de JavaScript y scripts Bash: PASS.
 - Build/ejecución de la imagen Docker: NOT TESTED; Docker no estaba instalado en este entorno.
 - Conexión a `102.129.137.35:9000`: NOT TESTED.

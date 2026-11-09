@@ -21,6 +21,27 @@ function runId (date = new Date()) {
   return date.toISOString().replaceAll(':', '-').replace(/\.\d{3}Z$/, 'Z')
 }
 
+function createContinuousHoldTracker (requiredClients, startedAt) {
+  let continuous = true
+  let heldUntil = startedAt
+  return {
+    sample (activeClients, at) {
+      if (!continuous) return
+      if (activeClients !== requiredClients) {
+        continuous = false
+        return
+      }
+      heldUntil = at
+    },
+    seconds () {
+      return Math.max(0, Math.floor((heldUntil - startedAt) / 1000))
+    },
+    isContinuous () {
+      return continuous
+    }
+  }
+}
+
 async function runTest (config, dependencies = {}) {
   const createBot = dependencies.createBot || require('bedboo').createBot
   const preflightFn = dependencies.preflight || preflight
@@ -85,13 +106,14 @@ async function runTest (config, dependencies = {}) {
 
     const holdStarted = nowMs()
     const holdEnds = holdStarted + config.scenario.durationSeconds * 1000
-    let heldTogetherUntil = holdStarted
+    const hold = createContinuousHoldTracker(config.scenario.clients, holdStarted)
+    hold.sample(sessions.filter(session => session.isActive()).length, holdStarted)
     while (nowMs() < holdEnds) {
-      if (sessions.every(session => session.isActive())) heldTogetherUntil = nowMs()
+      hold.sample(sessions.filter(session => session.isActive()).length, nowMs())
       await sleepFn(Math.min(1000, holdEnds - nowMs()), signal)
     }
-    if (sessions.every(session => session.isActive())) heldTogetherUntil = holdEnds
-    result.metrics.simultaneousHoldSeconds = Math.max(0, Math.floor((heldTogetherUntil - holdStarted) / 1000))
+    hold.sample(sessions.filter(session => session.isActive()).length, holdEnds)
+    result.metrics.simultaneousHoldSeconds = hold.seconds()
   } catch (error) {
     result.aborted = signal?.aborted || false
     errors.push({ at: new Date().toISOString(), clientId: null, category: result.aborted ? 'aborted' : 'other', message: error.message })
@@ -118,4 +140,4 @@ async function runTest (config, dependencies = {}) {
   return result
 }
 
-module.exports = { BEDBOO_COMMIT, runId, runTest, sleep }
+module.exports = { BEDBOO_COMMIT, createContinuousHoldTracker, runId, runTest, sleep }

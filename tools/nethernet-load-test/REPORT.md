@@ -2,12 +2,12 @@
 
 Estado: **NOT TESTED**
 
-La herramienta y sus pruebas locales están preparadas, pero no se ejecutó ninguna conexión contra `102.129.137.35:9000`. No había identidades Microsoft/Xbox independientes disponibles en este entorno y el perfil final exige autenticación legítima.
+La herramienta y sus pruebas locales están preparadas, pero todavía no se ejecutó ninguna conexión contra `102.129.137.35:9000`. El laboratorio tiene preparado un modo offline restringido y reversible; falta reiniciarlo para aplicarlo. El perfil final seguirá exigiendo autenticación Microsoft/Xbox legítima.
 
 ## Ejecutado
 
 - Validación del diseño y configuración: PASS.
-- Tests propios: 11/11 PASS.
+- Tests propios: 12/12 PASS.
 - Tests upstream seleccionados de bedboo: 12/12 PASS.
 - Sintaxis JavaScript/Bash: PASS.
 

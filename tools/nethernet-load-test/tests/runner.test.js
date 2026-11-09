@@ -5,7 +5,16 @@ const path = require('path')
 const { EventEmitter } = require('events')
 const { it } = require('node:test')
 const { validateConfig } = require('../src/config')
-const { runTest } = require('../src/runner')
+const { createContinuousHoldTracker, runTest } = require('../src/runner')
+
+it('never resumes continuous hold accounting after an intermediate disconnect', () => {
+  const hold = createContinuousHoldTracker(5, 0)
+  hold.sample(5, 1000)
+  hold.sample(4, 2000)
+  hold.sample(5, 180000)
+  assert.strictEqual(hold.seconds(), 1)
+  assert.strictEqual(hold.isContinuous(), false)
+})
 
 it('counts a client only after world spawn and can produce PASS', async () => {
   const input = {

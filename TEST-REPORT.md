@@ -6,11 +6,11 @@ Fecha: 9 de noviembre de 2026. Resultado global: **experimental; no candidato a 
 
 - Rama: `nethernet-load-test`, derivada de `native-nethernet-experimental`.
 - Herramienta aislada: `tools/nethernet-load-test/`.
-- Tests locales de la herramienta: 11/11 PASS.
+- Tests locales de la herramienta: 12/12 PASS, incluida la ruptura irreversible del contador continuo tras una desconexión.
 - Tests seleccionados de transporte/versión de bedboo: 12/12 PASS en el commit
   `254bfcc4d05ddad767ac95e6208f6e1942dea8f3`.
-- Servidor autorizado `102.129.137.35:9000`: **NOT TESTED** desde este entorno.
-- Escenarios automatizados de 1/2/5/10 clientes: **NOT TESTED**; no había identidades Microsoft/Xbox disponibles.
+- Servidor autorizado `102.129.137.35:9000`: preparado para una ventana offline restringida; reinicio y conexiones aún pendientes.
+- Escenarios automatizados de 1/2/5/10 clientes: **NOT TESTED**.
 - Egg, startup, instalador, Wings, Docker, firewall y servidores de clientes: sin cambios.
 
 Consulte `tools/nethernet-load-test/REPORT.md` y `RESEARCH.md` para los requisitos de ejecución y hallazgos.
