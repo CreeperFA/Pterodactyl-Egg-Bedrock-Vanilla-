@@ -1,0 +1,30 @@
+{
+  "target": {
+    "host": "102.129.137.35",
+    "port": 9000,
+    "bdsVersion": "1.26.63.1",
+    "transport": "nethernet",
+    "serverKey": ""
+  },
+  "authorization": {
+    "confirmed": false,
+    "target": "102.129.137.35:9000",
+    "offlineApproved": false,
+    "note": "Set confirmed=true only when the operator authorizes this exact laboratory run."
+  },
+  "auth": {
+    "mode": "microsoft",
+    "clients": [
+      {
+        "id": "bot-01",
+        "username": "account-01",
+        "profilesFolder": "C:\\supercores-secrets\\bedboo-account-01"
+      }
+    ]
+  },
+  "scenario": "basic",
+  "intervalSeconds": 4,
+  "connectTimeoutSeconds": 45,
+  "shutdownTimeoutSeconds": 10,
+  "reportDirectory": "reports"
+}

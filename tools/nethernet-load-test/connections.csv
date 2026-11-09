@@ -1,0 +1,1 @@
+id,username,auth_mode,started_at,connected_at,login_at,spawned_at,ended_at,time_to_spawn_ms,session_duration_ms,auth_result,ice_state,connection_state,latency_ms_last,latency_ms_average,disconnect_reason,error_count

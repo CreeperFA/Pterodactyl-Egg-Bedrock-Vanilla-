@@ -1,0 +1,14 @@
+{
+  "name": "@supercores/nethernet-load-test",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/cli.js",
+    "check": "node src/cli.js --check",
+    "test": "node --test tests/*.test.js"
+  }
+}

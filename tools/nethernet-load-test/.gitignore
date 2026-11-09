@@ -1,0 +1,5 @@
+config.json
+.runtime/
+.auth-cache/
+reports/*/
+!reports/.gitkeep

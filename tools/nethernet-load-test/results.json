@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "runId": "repository-baseline-NOT-TESTED",
+  "status": "NOT TESTED",
+  "summary": "Tooling validated locally; no real network connection was attempted.",
+  "target": {
+    "host": "102.129.137.35",
+    "port": 9000,
+    "bdsVersion": "1.26.63.1",
+    "transport": "nethernet"
+  },
+  "library": {
+    "name": "bedboo",
+    "version": "0.0.0",
+    "commit": "254bfcc4d05ddad767ac95e6208f6e1942dea8f3"
+  },
+  "authMode": "microsoft",
+  "scenario": {
+    "name": "basic",
+    "clients": 1,
+    "durationSeconds": 60
+  },
+  "metrics": {
+    "spawnedClients": 0,
+    "maximumSimultaneous": 0,
+    "simultaneousHoldSeconds": 0
+  },
+  "clients": [],
+  "errors": [],
+  "limitations": [
+    "No real clients were executed.",
+    "Microsoft/Xbox authentication was not tested.",
+    "TCP, UDP and node port usage were not inspected."
+  ]
+}
