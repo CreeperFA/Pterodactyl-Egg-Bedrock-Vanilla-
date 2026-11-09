@@ -41,7 +41,7 @@ número. Esto está confirmado en [Allocations.Bindings](https://github.com/pter
 
 ## Propiedades aplicadas
 
-El script no cambia `allow-list`, mundos, permisos ni complementos. En estable shared aplica:
+El script no cambia mundos, permisos ni complementos. En funcionamiento normal administra `online-mode=true` y restaura `allow-list` desde la variable `ALLOW_LIST`. En estable shared aplica:
 
 ```properties
 server-port=PUERTO_PRINCIPAL

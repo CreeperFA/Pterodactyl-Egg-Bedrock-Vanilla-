@@ -9,9 +9,11 @@ Fecha: 9 de noviembre de 2026. Resultado global: **experimental; no candidato a 
 - Tests locales de la herramienta: 12/12 PASS, incluida la ruptura irreversible del contador continuo tras una desconexión.
 - Tests seleccionados de transporte/versión de bedboo: 12/12 PASS en el commit
   `254bfcc4d05ddad767ac95e6208f6e1942dea8f3`.
-- Servidor autorizado `102.129.137.35:9000`: preparado para una ventana offline restringida; reinicio y conexiones aún pendientes.
+- BDS 1.26.63.1 rechazó la preparación inicial `online-mode=false` + `allow-list=true` con código 2; no fue un fallo de NetherNet ni memoria.
+- El startup corregido aplica OFFLINE `false/false` sólo con aprobación y constancia separada de restricción de red; sin ambas aborta antes de escribir propiedades.
+- Servidor autorizado `102.129.137.35:9000`: pruebas bloqueadas hasta confirmar una ACL externa TCP+UDP a los orígenes de laboratorio.
 - Escenarios automatizados de 1/2/5/10 clientes: **NOT TESTED**.
-- Egg, startup, instalador, Wings, Docker, firewall y servidores de clientes: sin cambios.
+- Wings, Docker, firewall, mundos, allocations y servidores de clientes: sin cambios.
 
 Consulte `tools/nethernet-load-test/REPORT.md` y `RESEARCH.md` para los requisitos de ejecución y hallazgos.
 
@@ -27,6 +29,8 @@ Consulte `tools/nethernet-load-test/REPORT.md` y `RESEARCH.md` para los requisit
 - Fixture stable-shared: produce `IP:public:local`, mantiene `online-mode=true`, crea backup.
 - Fixture preview-shared: usa `server-public-ip`, puerto compartido y elimina `transport` no documentado.
 - Check-only: hash de `server.properties` idéntico antes y después.
+- Fixture OFFLINE LAB: `online-mode=false`, `allow-list=false`; no arranca si falta la constancia de red.
+- Fixture de reversión Xbox: `online-mode=true`, `allow-list=true` cuando `ALLOW_LIST=true`.
 - Parser de PowerShell para las herramientas de generación, validación e inventario dry-run.
 - `go test -count=1 ./...` y `go vet ./...` del publicador Legacy sin regresiones.
 - El instalador preserva archivos de configuración existentes, no elimina archivos desconocidos y fija/verifica el

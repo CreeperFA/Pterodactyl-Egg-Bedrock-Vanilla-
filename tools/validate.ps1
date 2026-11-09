@@ -58,7 +58,18 @@ try {
 
     $labDir = Join-Path $tempRoot 'stable'
     $marker = Join-Path $labDir '.supercores/lab-offline-approved'
+    $networkMarker = Join-Path $labDir '.supercores/lab-network-restriction-approved'
     [IO.File]::WriteAllText($marker, 'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_OFFLINE_LAB', [Text.Encoding]::ASCII)
+    $beforeBlocked = (Get-FileHash -LiteralPath (Join-Path $labDir 'server.properties')).Hash
+    Push-Location $labDir
+    try {
+        & $bash -c 'env BEDROCK_NETWORK_MODE=native NATIVE_PROFILE=auto PUBLIC_IP=203.0.113.10 SERVER_PORT=24567 EXECUTABLE=./dummy-bds ./supercores-start.sh'
+        if ($LASTEXITCODE -eq 0) { throw 'offline laboratory started without the network-restriction gate' }
+    } finally { Pop-Location }
+    $afterBlocked = (Get-FileHash -LiteralPath (Join-Path $labDir 'server.properties')).Hash
+    if ($beforeBlocked -ne $afterBlocked) { throw 'blocked offline preflight modified server.properties' }
+
+    [IO.File]::WriteAllText($networkMarker, 'I_CONFIRM_NETWORK_ACCESS_IS_RESTRICTED_TO_AUTHORIZED_TEST_ORIGINS', [Text.Encoding]::ASCII)
     Push-Location $labDir
     try {
         & $bash -c 'env BEDROCK_NETWORK_MODE=native NATIVE_PROFILE=auto PUBLIC_IP=203.0.113.10 SERVER_PORT=24567 EXECUTABLE=./dummy-bds ./supercores-start.sh'
@@ -66,17 +77,17 @@ try {
     } finally { Pop-Location }
     $offlineProperties = Get-Content -LiteralPath (Join-Path $labDir 'server.properties') -Raw
     if ($offlineProperties -notmatch '(?m)^online-mode=false$') { throw 'offline laboratory marker did not disable online-mode' }
-    if ($offlineProperties -notmatch '(?m)^allow-list=true$') { throw 'offline laboratory marker did not enforce the allowlist' }
+    if ($offlineProperties -notmatch '(?m)^allow-list=false$') { throw 'offline laboratory did not disable the BDS-incompatible allowlist' }
 
-    Remove-Item -LiteralPath $marker -Force
+    Remove-Item -LiteralPath $marker,$networkMarker -Force
     Push-Location $labDir
     try {
-        & $bash -c 'env BEDROCK_NETWORK_MODE=native NATIVE_PROFILE=auto PUBLIC_IP=203.0.113.10 SERVER_PORT=24567 EXECUTABLE=./dummy-bds ./supercores-start.sh'
+        & $bash -c 'env BEDROCK_NETWORK_MODE=native NATIVE_PROFILE=auto PUBLIC_IP=203.0.113.10 SERVER_PORT=24567 ALLOW_LIST=true EXECUTABLE=./dummy-bds ./supercores-start.sh'
         if ($LASTEXITCODE) { throw 'Xbox restoration execution failed' }
     } finally { Pop-Location }
     $restoredProperties = Get-Content -LiteralPath (Join-Path $labDir 'server.properties') -Raw
     if ($restoredProperties -notmatch '(?m)^online-mode=true$') { throw 'removing laboratory marker did not restore online-mode=true' }
-    if ($restoredProperties -notmatch '(?m)^allow-list=false$') { throw 'removing laboratory marker did not restore configured allow-list=false' }
+    if ($restoredProperties -notmatch '(?m)^allow-list=true$') { throw 'removing laboratory markers did not restore configured allow-list=true' }
 
     $checkDir = Join-Path $tempRoot 'check-only'
     Copy-Item -Recurse -LiteralPath (Join-Path $tempRoot 'stable') -Destination $checkDir
@@ -94,4 +105,4 @@ try {
     }
 }
 
-Write-Host 'Validation passed: egg JSON, shell syntax, stable/preview profiles, reversible offline laboratory marker, rollback backup, and check-only behavior.'
+Write-Host 'Validation passed: egg JSON, shell syntax, stable/preview profiles, gated offline false/false, Xbox true/true restoration, rollback backup, and check-only behavior.'

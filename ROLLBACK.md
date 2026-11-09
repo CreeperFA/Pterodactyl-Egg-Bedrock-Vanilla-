@@ -2,6 +2,14 @@
 
 El rollback no cambia allocations, no reinstala y no elimina mundos.
 
+## OFFLINE LAB a Xbox
+
+1. Retirar `.supercores/lab-offline-approved`, `.supercores/lab-network-restriction-approved` y el archivo informativo `lab-network-restriction-details.txt`.
+2. Reiniciar el laboratorio. El startup aplica `online-mode=true` y restaura el valor configurado de `ALLOW_LIST`.
+3. Confirmar ambas propiedades en consola/archivo antes de retirar la ACL temporal externa.
+
+El helper `tools/nethernet-load-test/scripts/lab-auth.ps1 -Mode xbox` realiza solamente el paso 1 sobre un directorio local; no toca red ni Pterodactyl.
+
 ## Native a Legacy Proxy
 
 1. Detener BDS con `stop` y confirmar que quedó offline.

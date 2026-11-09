@@ -11,6 +11,8 @@ readonly STATE_DIR=".supercores"
 readonly GUIDE_FILE="bedrock_server_how_to.html"
 readonly LAB_OFFLINE_MARKER="$STATE_DIR/lab-offline-approved"
 readonly LAB_OFFLINE_CONFIRMATION="I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_OFFLINE_LAB"
+readonly LAB_NETWORK_MARKER="$STATE_DIR/lab-network-restriction-approved"
+readonly LAB_NETWORK_CONFIRMATION="I_CONFIRM_NETWORK_ACCESS_IS_RESTRICTED_TO_AUTHORIZED_TEST_ORIGINS"
 DETECTED_VERSION="${BDS_VERSION:-unknown}"
 [[ ! -s "$STATE_DIR/bds-version" ]] || DETECTED_VERSION="$(tr -d '\r\n' < "$STATE_DIR/bds-version")"
 readonly DETECTED_VERSION
@@ -43,14 +45,35 @@ resolve_public_ip() {
 }
 
 resolve_online_mode() {
-    local confirmation
+    local confirmation network_confirmation
     if [[ ! -f "$LAB_OFFLINE_MARKER" ]]; then
         printf 'true'
         return
     fi
     confirmation="$(tr -d '\r\n' < "$LAB_OFFLINE_MARKER")"
     [[ "$confirmation" == "$LAB_OFFLINE_CONFIRMATION" ]] || fatal "$LAB_OFFLINE_MARKER exists but does not contain the required laboratory confirmation"
+    [[ -f "$LAB_NETWORK_MARKER" ]] || fatal "offline laboratory is blocked: $LAB_NETWORK_MARKER is missing; first restrict TCP+UDP ${PORT} to authorized test origins"
+    network_confirmation="$(tr -d '\r\n' < "$LAB_NETWORK_MARKER")"
+    [[ "$network_confirmation" == "$LAB_NETWORK_CONFIRMATION" ]] || fatal "$LAB_NETWORK_MARKER exists but does not contain the required network-restriction confirmation"
     printf 'false'
+}
+
+resolve_allow_list() {
+    local online_mode="$1"
+    if [[ "$online_mode" == 'false' ]]; then
+        printf 'false'
+    else
+        printf '%s' "$CONFIGURED_ALLOW_LIST"
+    fi
+}
+
+validate_auth_combination() {
+    local online_mode="$1" allow_list="$2"
+    validate_boolean 'online-mode' "$online_mode"
+    validate_boolean 'allow-list' "$allow_list"
+    if [[ "$online_mode" == 'false' && "$allow_list" == 'true' ]]; then
+        fatal 'BDS rejects allow-list=true when online-mode=false; refusing to modify server.properties'
+    fi
 }
 
 detect_profile() {
@@ -94,9 +117,9 @@ remove_property() {
 }
 
 show_native_plan() {
-    local profile="$1" public_ip="$2" online_mode="$3" authentication='Xbox'
+    local profile="$1" public_ip="$2" online_mode="$3" allow_list="$4" authentication='Xbox'
     [[ "$online_mode" == 'true' ]] || authentication='OFFLINE LAB'
-    log "mode=native profile=${profile} BDS_VERSION=${DETECTED_VERSION} public=${public_ip}:${PORT} authentication=${authentication}"
+    log "mode=native profile=${profile} BDS_VERSION=${DETECTED_VERSION} public=${public_ip}:${PORT} authentication=${authentication} allow-list=${allow_list}"
     log "Wings must publish the primary allocation as both TCP/${PORT} and UDP/${PORT}"
     if [[ "$profile" == "stable-shared" ]]; then
         log "planned server-udp-ports=${public_ip}:${PORT}:${PORT}"
@@ -106,7 +129,7 @@ show_native_plan() {
 }
 
 configure_native() {
-    local profile="$1" public_ip="$2" online_mode="$3" mapped_ip="$2"
+    local profile="$1" public_ip="$2" online_mode="$3" allow_list="$4" mapped_ip="$2"
     [[ -f "$PROPERTIES_FILE" ]] || fatal "$PROPERTIES_FILE is missing"
     mkdir -p "$STATE_DIR/backups"
     if [[ ! -f "$STATE_DIR/backups/server.properties.pre-native" ]]; then
@@ -116,11 +139,7 @@ configure_native() {
     set_property server-port "$PORT"
     set_property server-ip ""
     set_property online-mode "$online_mode"
-    if [[ "$online_mode" == 'false' ]]; then
-        set_property allow-list true
-    else
-        set_property allow-list "$CONFIGURED_ALLOW_LIST"
-    fi
+    set_property allow-list "$allow_list"
     set_property enable-lan-visibility false
 
     case "$profile" in
@@ -142,21 +161,23 @@ configure_native() {
 run_native() {
     validate_port "$PORT"
     validate_boolean 'ALLOW_LIST' "$CONFIGURED_ALLOW_LIST"
-    local profile public_ip online_mode
+    local profile public_ip online_mode allow_list
     profile="$(detect_profile)"
     public_ip="$(resolve_public_ip)"
     online_mode="$(resolve_online_mode)"
-    show_native_plan "$profile" "$public_ip" "$online_mode"
+    allow_list="$(resolve_allow_list "$online_mode")"
+    validate_auth_combination "$online_mode" "$allow_list"
+    show_native_plan "$profile" "$public_ip" "$online_mode" "$allow_list"
     if [[ "${SUPERCORES_CHECK_ONLY:-0}" == "1" || "${1:-}" == "--check" ]]; then
         log "check-only: no files changed and no process started"
         return
     fi
     [[ -x "$BDS_EXECUTABLE" ]] || fatal "$BDS_EXECUTABLE is missing or not executable"
-    configure_native "$profile" "$public_ip" "$online_mode"
+    configure_native "$profile" "$public_ip" "$online_mode" "$allow_list"
     if [[ "$online_mode" == 'true' ]]; then
         log "starting BDS directly with Xbox authentication enabled"
     else
-        log "WARNING: starting isolated laboratory with authentication disabled; remove $LAB_OFFLINE_MARKER and restart immediately after testing"
+        log "WARNING: starting network-restricted laboratory with authentication and allowlist disabled; remove $LAB_OFFLINE_MARKER and $LAB_NETWORK_MARKER, then restart immediately after testing"
     fi
     exec env LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-.}" "$BDS_EXECUTABLE"
 }

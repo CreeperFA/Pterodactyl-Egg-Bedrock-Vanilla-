@@ -34,21 +34,28 @@ El servidor de laboratorio permanece con `online-mode=true`. No ejecute el perfi
 
 ### Alternar solamente el laboratorio
 
-El startup experimental reconoce el marcador `.supercores/lab-offline-approved` únicamente cuando contiene exactamente:
+El startup experimental exige dos marcadores. La aprobación offline debe contener exactamente:
 
 ```text
 I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_OFFLINE_LAB
 ```
 
-Con el marcador, el próximo arranque aplica `online-mode=false`. Al eliminarlo y reiniciar, aplica obligatoriamente `online-mode=true`; no conserva accidentalmente el estado offline. En una copia local del directorio del servidor puede gestionarse con:
+La constancia `.supercores/lab-network-restriction-approved` debe existir solamente después de verificar una ACL externa para TCP+UDP y contener:
+
+```text
+I_CONFIRM_NETWORK_ACCESS_IS_RESTRICTED_TO_AUTHORIZED_TEST_ORIGINS
+```
+
+Con ambos marcadores, el próximo arranque aplica `online-mode=false` y `allow-list=false`. BDS 1.26.63.1 rechaza `online-mode=false` con `allow-list=true`; si falta una confirmación, el preflight termina antes de modificar `server.properties`. Al retirar los marcadores y reiniciar, aplica `online-mode=true` y restaura `ALLOW_LIST`. En una copia local del directorio puede gestionarse con:
 
 ```powershell
-.\scripts\lab-auth.ps1 -Mode offline -ServerDirectory C:\ruta\del\servidor
+.\scripts\lab-auth.ps1 -Mode offline -ServerDirectory C:\ruta\del\servidor `
+  -NetworkRestrictionConfirmed -AuthorizedOrigins '198.51.100.25/32 (bot runner)'
 # ejecutar pruebas y luego:
 .\scripts\lab-auth.ps1 -Mode xbox -ServerDirectory C:\ruta\del\servidor
 ```
 
-El marcador no modifica la allowlist. Restrinja el acceso por allowlist o firewall durante toda la ventana offline.
+El helper no crea la restricción: sólo registra que un administrador ya la verificó. No modifica firewall, proveedor, Wings ni Docker. No habilite offline sobre una IP pública sin esa protección.
 
 ## Windows con Docker (recomendado)
 
