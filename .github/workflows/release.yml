@@ -91,6 +91,7 @@ jobs:
           cp egg-vanilla-bedrock-proxy.json dist/
           cp proxy/config.example.json dist/config.example.json
           cp scripts/supercores-start.sh dist/
+          cp scripts/install.sh dist/
           cp CHANGELOG.md RELEASE_NOTES.md INSTALLATION.md PRODUCTION-UPDATE.md MIGRATION.md ROLLBACK.md COMPATIBILITY.md TEST-REPORT.md COMMUNITY-TESTING.md dist/
           cd dist
           sha256sum * > SHA256SUMS
