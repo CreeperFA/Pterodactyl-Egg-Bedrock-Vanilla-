@@ -24,14 +24,16 @@ La importación y el piloto deben ser ejecutados por el administrador. Esta rele
    PUBLIC_IP=<IP pública literal si SERVER_IP no es publicable>
    BEDROCK_CHANNEL=stable
    BEDROCK_VERSION=1.26.63.1 (o una versión exacta aprobada posteriormente)
+   SUPERCORES_RELEASE=v2.0.0-beta.2 (fijar el tag aprobado; latest queda para laboratorios/pilotos)
    ALLOW_LIST=<valor actual>
    MAX_PLAYERS=<valor actual>
    EXECUTABLE=./bedrock_server
    LD_LIBRARY_PATH=.
    ```
 
-5. Copia el `supercores-start.sh` publicado al volumen y aplica permiso `0755`. El simple **Update Egg** no lo
-   coloca en servidores existentes.
+5. En una instalación nueva, Install descarga el startup y lo verifica automáticamente. En un servidor existente,
+   el simple **Update Egg** no ejecuta Install ni coloca archivos: sincroniza el script durante una ventana controlada
+   o reinstala sólo después de confirmar el backup y la política de preservación.
 6. Mantén la allocation actual si el mismo número funciona por TCP y UDP; no asignes rangos ni publiques
    `BACKEND_PORT`.
 7. Ejecuta check-only y revisa el plan antes de iniciar.

@@ -24,12 +24,14 @@ No se necesita un rango por jugador. Wings publica cada allocation como TCP y UD
    NATIVE_PROFILE=auto
    BEDROCK_CHANNEL=stable
    BEDROCK_VERSION=1.26.63.1
+   SUPERCORES_RELEASE=v2.0.0-beta.2 (o latest para seguir la última release publicada)
    ```
 
 5. Configura `PUBLIC_IP` si `SERVER_IP` es `0.0.0.0`, privada o no coincide con la IP pública que recibe el
    tráfico. No uses una IP Docker `172.x.x.x`.
-6. Instala el servidor. El instalador obtiene BDS desde la API oficial, conserva archivos del cliente y registra
-   URL, versión y SHA-256 en `.supercores/`.
+6. Instala el servidor. El instalador obtiene BDS desde la API oficial, descarga `supercores-start.sh` desde la
+   release seleccionada, verifica `SHA256SUMS`, conserva archivos del cliente y registra versión, release y hashes
+   en `.supercores/`. No hace falta subir el startup por SFTP.
 7. Antes del primer arranque ejecuta:
 
    ```bash

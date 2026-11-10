@@ -19,7 +19,9 @@ Pterodactyl publicada con el mismo número en TCP y UDP.
 3. Asigna un único puerto; el firewall debe permitir ese mismo número por TCP y UDP.
 4. Usa `BEDROCK_CHANNEL=stable`, `BEDROCK_NETWORK_MODE=native` y `NATIVE_PROFILE=auto`.
 5. Si `SERVER_IP` no es la IP pública alcanzable, define `PUBLIC_IP` desde administración.
-6. Prueba primero en un servidor nuevo o piloto. No reinstales servidores de clientes para actualizar el Egg.
+6. El instalador descarga automáticamente el startup y los assets verificados de la release indicada por
+   `SUPERCORES_RELEASE` (por defecto `latest`). Para producción, fija un tag aprobado.
+7. Prueba primero en un servidor nuevo o piloto. No reinstales servidores de clientes para actualizar el Egg.
 
 Consulta [INSTALLATION.md](INSTALLATION.md) para instalaciones nuevas y
 [PRODUCTION-UPDATE.md](PRODUCTION-UPDATE.md) para actualizar una instalación existente de forma reversible.
@@ -31,6 +33,7 @@ Consulta [INSTALLATION.md](INSTALLATION.md) para instalaciones nuevas y
 - Rechaza IP privadas, loopback y link-local como dirección pública anunciada.
 - No modifica mundos, permisos ni complementos.
 - Crea una copia única de `server.properties` antes de la primera configuración Native.
+- Descarga `supercores-start.sh` mediante la API de GitHub Releases y verifica su SHA-256 contra `SHA256SUMS`.
 - `BACKEND_PORT` sólo pertenece al rollback Legacy y nunca debe publicarse.
 
 ## Compatibilidad

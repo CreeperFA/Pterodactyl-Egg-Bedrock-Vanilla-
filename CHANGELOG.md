@@ -7,6 +7,7 @@
 - Mantiene `online-mode=true` y sincroniza allowlist/límite desde el Egg.
 - Rechaza direcciones privadas como IP pública anunciada.
 - Añade instalación conservadora, backup previo, check-only y rollback Legacy v1.3.0.
+- Descarga automáticamente startup/assets desde GitHub Releases con `SUPERCORES_RELEASE` y `SHA256SUMS`.
 - Añade documentación de instalación, actualización, compatibilidad, pruebas comunitarias y reversión.
 - Excluye las herramientas bedboo, identidades offline, marcadores y configuraciones del laboratorio.
 

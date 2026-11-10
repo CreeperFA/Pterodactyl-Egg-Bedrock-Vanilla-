@@ -15,6 +15,8 @@ Resultado: **beta pública; configuración validada localmente, multijugador com
 - Backup previo a Native y generación reproducible del Egg.
 - `go test ./...` y `go vet ./...` del rollback Legacy sin regresiones.
 - Auditoría de secretos y ausencia de herramientas bedboo, identidades offline, marcadores y destino del laboratorio.
+- Inspección automatizada del JSON: el instalador usa GitHub Releases, `SUPERCORES_RELEASE`, `SHA256SUMS` y
+  descargas temporales; no embebe ni requiere subir `supercores-start.sh` por SFTP.
 
 ## No ejecutado como validación de esta release
 

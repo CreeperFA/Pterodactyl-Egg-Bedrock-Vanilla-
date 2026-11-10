@@ -23,14 +23,13 @@ if ($LASTEXITCODE) { throw 'install.sh failed bash -n' }
 $egg = Get-Content -LiteralPath $eggPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($egg.meta.version -ne 'PTDL_v2') { throw 'Egg is not PTDL_v2.' }
 if ($egg.startup -ne 'bash ./supercores-start.sh') { throw 'Unexpected startup command.' }
-if ($egg.scripts.installation.script.Contains('__START_SCRIPT_BASE64__')) { throw 'Unexpanded installer token.' }
-$encodedMatch = [regex]::Match($egg.scripts.installation.script, "printf '%s' '([A-Za-z0-9+/=]+)' \| base64 -d > supercores-start[.]sh")
-if (-not $encodedMatch.Success) { throw 'Embedded startup script was not found in the installer.' }
-$embeddedStart = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encodedMatch.Groups[1].Value))
-$sourceStart = (Get-Content -LiteralPath $startScript -Raw -Encoding UTF8).Replace("`r`n", "`n")
-if ($embeddedStart -ne $sourceStart) { throw 'Embedded startup script differs from scripts/supercores-start.sh.' }
+$installScriptText = $egg.scripts.installation.script
+foreach ($requiredText in 'SUPERCORES_RELEASE','api.github.com/repos/','SHA256SUMS','download_release_asset','supercores-start.sh') {
+    if (-not $installScriptText.Contains($requiredText)) { throw "Installer is missing release download mechanism: $requiredText" }
+}
+if ($installScriptText.Contains('__START_SCRIPT_BASE64__') -or $installScriptText -match 'base64 -d') { throw 'Installer still embeds startup through Base64.' }
 $names = @($egg.variables.env_variable)
-foreach ($required in 'BEDROCK_NETWORK_MODE','NATIVE_PROFILE','PUBLIC_IP','BEDROCK_CHANNEL','BEDROCK_VERSION','ALLOW_LIST','BACKEND_PORT') {
+foreach ($required in 'BEDROCK_NETWORK_MODE','NATIVE_PROFILE','SUPERCORES_RELEASE','PUBLIC_IP','BEDROCK_CHANNEL','BEDROCK_VERSION','ALLOW_LIST','BACKEND_PORT') {
     if ($required -notin $names) { throw "Missing egg variable $required" }
 }
 

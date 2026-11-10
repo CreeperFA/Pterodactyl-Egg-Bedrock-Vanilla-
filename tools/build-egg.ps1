@@ -6,13 +6,10 @@ $repo = Split-Path -Parent $PSScriptRoot
 $basePath = Join-Path $repo 'egg-vanilla-bedrock-proxy.json'
 $outputPath = Join-Path $repo 'egg-supercores-bedrock-nethernet.json'
 $installPath = Join-Path $repo 'scripts/install.sh'
-$startPath = Join-Path $repo 'scripts/supercores-start.sh'
 
 $egg = Get-Content -LiteralPath $basePath -Raw -Encoding UTF8 | ConvertFrom-Json
 $install = Get-Content -LiteralPath $installPath -Raw -Encoding UTF8
-$startBytes = [Text.Encoding]::UTF8.GetBytes((Get-Content -LiteralPath $startPath -Raw -Encoding UTF8).Replace("`r`n", "`n"))
-$startBase64 = [Convert]::ToBase64String($startBytes)
-$install = $install.Replace('__START_SCRIPT_BASE64__', $startBase64).Replace("`r`n", "`n")
+$install = $install.Replace("`r`n", "`n")
 
 $egg.exported_at = '2026-11-09T19:00:00+00:00'
 $egg.name = 'Minecraft Bedrock Vanilla (Native NetherNet Beta)'
@@ -42,6 +39,7 @@ function New-EggVariable {
 $egg.variables = @(
     (New-EggVariable 'Network mode' 'Explicit mode selection. Native preserves Xbox authentication; legacy_proxy is rollback only.' 'BEDROCK_NETWORK_MODE' 'native' $true $false 'required|string|in:native,legacy_proxy'),
     (New-EggVariable 'Native compatibility profile' 'auto inspects the official BDS guide. Forced profiles are for isolated diagnostics only.' 'NATIVE_PROFILE' 'auto' $false $false 'required|string|in:auto,stable-shared,preview-shared'),
+    (New-EggVariable 'SuperCores release' 'Release tag used to download the verified startup and Legacy assets. latest follows the newest published release; pin a tag for production.' 'SUPERCORES_RELEASE' 'latest' $true $true 'required|string|max:64'),
     (New-EggVariable 'Public IP' 'Literal public IPv4/IPv6 receiving the primary allocation. Required when SERVER_IP is 0.0.0.0, private, or otherwise not externally reachable.' 'PUBLIC_IP' '' $true $false 'nullable|ip'),
     (New-EggVariable 'Bedrock channel' 'stable is recommended for beta testing; preview is unsupported for production use.' 'BEDROCK_CHANNEL' 'stable' $true $false 'required|string|in:stable,preview'),
     (New-EggVariable 'Bedrock version' 'The beta pins the tested 1.26.63.1 archive by default; set latest only after validating a newer BDS build.' 'BEDROCK_VERSION' '1.26.63.1' $true $true 'required|string|max:32'),
