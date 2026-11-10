@@ -4,11 +4,11 @@ El rollback no cambia allocations, no reinstala y no elimina mundos.
 
 ## OFFLINE LAB a Xbox
 
-1. Retirar `.supercores/lab-offline-approved`, `.supercores/lab-network-restriction-approved` y el archivo informativo `lab-network-restriction-details.txt`.
-2. Reiniciar el laboratorio. El startup aplica `online-mode=true` y restaura el valor configurado de `ALLOW_LIST`.
+1. Retirar `.supercores/lab-offline-approved`, `.supercores/lab-network-restriction-approved`, `.supercores/lab-capacity-50-approved` y sus archivos informativos.
+2. Reiniciar el laboratorio. El startup aplica `online-mode=true`, restaura `ALLOW_LIST` y vuelve al `MAX_PLAYERS` configurado en Pterodactyl.
 3. Confirmar ambas propiedades en consola/archivo antes de retirar la ACL temporal externa.
 
-El helper `tools/nethernet-load-test/scripts/lab-auth.ps1 -Mode xbox` realiza solamente el paso 1 sobre un directorio local; no toca red ni Pterodactyl.
+El helper `tools/nethernet-load-test/scripts/lab-auth.ps1 -Mode xbox` realiza solamente el paso 1 sobre un directorio local; no toca red ni Pterodactyl. `lab-capacity.sh restore` conserva los marcadores retirados dentro de `.supercores/backups/`.
 
 ## Native a Legacy Proxy
 

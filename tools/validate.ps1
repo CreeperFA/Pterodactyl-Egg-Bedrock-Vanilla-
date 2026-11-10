@@ -6,6 +6,7 @@ $repo = Split-Path -Parent $PSScriptRoot
 $eggPath = Join-Path $repo 'egg-supercores-bedrock-nethernet.json'
 $startScript = Join-Path $repo 'scripts/supercores-start.sh'
 $installScript = Join-Path $repo 'scripts/install.sh'
+$capacityScript = Join-Path $repo 'tools/nethernet-load-test/scripts/lab-capacity.sh'
 $bash = 'C:\Program Files\Git\bin\bash.exe'
 if (-not (Test-Path -LiteralPath $bash)) { throw 'Git Bash is required for local shell validation.' }
 
@@ -13,6 +14,8 @@ if (-not (Test-Path -LiteralPath $bash)) { throw 'Git Bash is required for local
 if ($LASTEXITCODE) { throw 'supercores-start.sh failed bash -n' }
 & $bash -n $installScript
 if ($LASTEXITCODE) { throw 'install.sh failed bash -n' }
+& $bash -n $capacityScript
+if ($LASTEXITCODE) { throw 'lab-capacity.sh failed bash -n' }
 
 $egg = Get-Content -LiteralPath $eggPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($egg.meta.version -ne 'PTDL_v2') { throw 'Egg is not PTDL_v2.' }
@@ -24,13 +27,35 @@ $embeddedStart = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($en
 $sourceStart = (Get-Content -LiteralPath $startScript -Raw -Encoding UTF8).Replace("`r`n", "`n")
 if ($embeddedStart -ne $sourceStart) { throw 'Embedded startup script differs from scripts/supercores-start.sh.' }
 $names = @($egg.variables.env_variable)
-foreach ($required in 'BEDROCK_NETWORK_MODE','NATIVE_PROFILE','PUBLIC_IP','BEDROCK_CHANNEL','BEDROCK_VERSION','ALLOW_LIST','BACKEND_PORT') {
+foreach ($required in 'BEDROCK_NETWORK_MODE','NATIVE_PROFILE','PUBLIC_IP','BEDROCK_CHANNEL','BEDROCK_VERSION','ALLOW_LIST','MAX_PLAYERS','BACKEND_PORT') {
     if ($required -notin $names) { throw "Missing egg variable $required" }
 }
 
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('supercores-native-test-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tempRoot | Out-Null
 try {
+    $capacityDir = Join-Path $tempRoot 'capacity'
+    New-Item -ItemType Directory -Path $capacityDir | Out-Null
+    Copy-Item -LiteralPath $capacityScript -Destination (Join-Path $capacityDir 'lab-capacity.sh')
+    [IO.File]::WriteAllText((Join-Path $capacityDir 'server.properties'), "server-name=fixture`nmax-players=10`n", [Text.UTF8Encoding]::new($false))
+    $capacityBefore = (Get-FileHash -LiteralPath (Join-Path $capacityDir 'server.properties')).Hash
+    Push-Location $capacityDir
+    try {
+        & $bash ./lab-capacity.sh prepare
+        if ($LASTEXITCODE) { throw 'capacity dry-run failed' }
+        if ((Get-FileHash -LiteralPath server.properties).Hash -ne $capacityBefore) { throw 'capacity dry-run modified server.properties' }
+        & $bash ./lab-capacity.sh apply
+        if ($LASTEXITCODE -eq 0) { throw 'capacity apply succeeded without explicit confirmation' }
+        & $bash ./lab-capacity.sh apply --confirm-laboratory-capacity-change
+        if ($LASTEXITCODE) { throw 'confirmed capacity apply failed' }
+        if ((Get-FileHash -LiteralPath server.properties).Hash -ne $capacityBefore) { throw 'capacity marker helper directly modified server.properties' }
+        if ((Get-Content .supercores/lab-capacity-50-approved -Raw) -ne 'I_CONFIRM_THIS_LABORATORY_IS_AUTHORIZED_FOR_50_CLIENTS') { throw 'capacity marker confirmation mismatch' }
+        & $bash ./lab-capacity.sh restore
+        if ($LASTEXITCODE) { throw 'capacity restoration failed' }
+        if (Test-Path .supercores/lab-capacity-50-approved) { throw 'capacity restoration retained the active marker' }
+        if ((Get-FileHash -LiteralPath server.properties).Hash -ne $capacityBefore) { throw 'capacity restoration helper modified server.properties' }
+    } finally { Pop-Location }
+
     function Invoke-ProfileTest {
         param([string]$Name,[string]$Guide,[string]$ExpectedUdp,[string]$ExpectedPublic,[bool]$ExpectTransport)
         $dir = Join-Path $tempRoot $Name
@@ -59,6 +84,17 @@ try {
     $labDir = Join-Path $tempRoot 'stable'
     $marker = Join-Path $labDir '.supercores/lab-offline-approved'
     $networkMarker = Join-Path $labDir '.supercores/lab-network-restriction-approved'
+    $capacityMarker = Join-Path $labDir '.supercores/lab-capacity-50-approved'
+    [IO.File]::WriteAllText($capacityMarker, 'I_CONFIRM_THIS_LABORATORY_IS_AUTHORIZED_FOR_50_CLIENTS', [Text.Encoding]::ASCII)
+    $beforeUngatedCapacity = (Get-FileHash -LiteralPath (Join-Path $labDir 'server.properties')).Hash
+    Push-Location $labDir
+    try {
+        & $bash -c 'env BEDROCK_NETWORK_MODE=native NATIVE_PROFILE=auto PUBLIC_IP=203.0.113.10 SERVER_PORT=24567 MAX_PLAYERS=10 EXECUTABLE=./dummy-bds ./supercores-start.sh'
+        if ($LASTEXITCODE -eq 0) { throw '50-client capacity started outside gated OFFLINE LAB' }
+    } finally { Pop-Location }
+    if ((Get-FileHash -LiteralPath (Join-Path $labDir 'server.properties')).Hash -ne $beforeUngatedCapacity) { throw 'blocked capacity preflight modified server.properties' }
+    Remove-Item -LiteralPath $capacityMarker -Force
+
     [IO.File]::WriteAllText($marker, 'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_OFFLINE_LAB', [Text.Encoding]::ASCII)
     $beforeBlocked = (Get-FileHash -LiteralPath (Join-Path $labDir 'server.properties')).Hash
     Push-Location $labDir
@@ -70,24 +106,27 @@ try {
     if ($beforeBlocked -ne $afterBlocked) { throw 'blocked offline preflight modified server.properties' }
 
     [IO.File]::WriteAllText($networkMarker, 'I_CONFIRM_NETWORK_ACCESS_IS_RESTRICTED_TO_AUTHORIZED_TEST_ORIGINS', [Text.Encoding]::ASCII)
+    [IO.File]::WriteAllText($capacityMarker, 'I_CONFIRM_THIS_LABORATORY_IS_AUTHORIZED_FOR_50_CLIENTS', [Text.Encoding]::ASCII)
     Push-Location $labDir
     try {
-        & $bash -c 'env BEDROCK_NETWORK_MODE=native NATIVE_PROFILE=auto PUBLIC_IP=203.0.113.10 SERVER_PORT=24567 EXECUTABLE=./dummy-bds ./supercores-start.sh'
+        & $bash -c 'env BEDROCK_NETWORK_MODE=native NATIVE_PROFILE=auto PUBLIC_IP=203.0.113.10 SERVER_PORT=24567 MAX_PLAYERS=10 EXECUTABLE=./dummy-bds ./supercores-start.sh'
         if ($LASTEXITCODE) { throw 'offline laboratory profile execution failed' }
     } finally { Pop-Location }
     $offlineProperties = Get-Content -LiteralPath (Join-Path $labDir 'server.properties') -Raw
     if ($offlineProperties -notmatch '(?m)^online-mode=false$') { throw 'offline laboratory marker did not disable online-mode' }
     if ($offlineProperties -notmatch '(?m)^allow-list=false$') { throw 'offline laboratory did not disable the BDS-incompatible allowlist' }
+    if ($offlineProperties -notmatch '(?m)^max-players=50$') { throw 'capacity marker did not override configured MAX_PLAYERS=10 with 50' }
 
-    Remove-Item -LiteralPath $marker,$networkMarker -Force
+    Remove-Item -LiteralPath $marker,$networkMarker,$capacityMarker -Force
     Push-Location $labDir
     try {
-        & $bash -c 'env BEDROCK_NETWORK_MODE=native NATIVE_PROFILE=auto PUBLIC_IP=203.0.113.10 SERVER_PORT=24567 ALLOW_LIST=true EXECUTABLE=./dummy-bds ./supercores-start.sh'
+        & $bash -c 'env BEDROCK_NETWORK_MODE=native NATIVE_PROFILE=auto PUBLIC_IP=203.0.113.10 SERVER_PORT=24567 ALLOW_LIST=true MAX_PLAYERS=10 EXECUTABLE=./dummy-bds ./supercores-start.sh'
         if ($LASTEXITCODE) { throw 'Xbox restoration execution failed' }
     } finally { Pop-Location }
     $restoredProperties = Get-Content -LiteralPath (Join-Path $labDir 'server.properties') -Raw
     if ($restoredProperties -notmatch '(?m)^online-mode=true$') { throw 'removing laboratory marker did not restore online-mode=true' }
     if ($restoredProperties -notmatch '(?m)^allow-list=true$') { throw 'removing laboratory markers did not restore configured allow-list=true' }
+    if ($restoredProperties -notmatch '(?m)^max-players=10$') { throw 'removing capacity marker did not restore configured MAX_PLAYERS=10' }
 
     $checkDir = Join-Path $tempRoot 'check-only'
     Copy-Item -Recurse -LiteralPath (Join-Path $tempRoot 'stable') -Destination $checkDir
@@ -105,4 +144,4 @@ try {
     }
 }
 
-Write-Host 'Validation passed: egg JSON, shell syntax, stable/preview profiles, gated offline false/false, Xbox true/true restoration, rollback backup, and check-only behavior.'
+Write-Host 'Validation passed: egg JSON, shell syntax, stable/preview profiles, gated offline false/false, Xbox true/true restoration, reversible 10/50 capacity, rollback backup, and check-only behavior.'

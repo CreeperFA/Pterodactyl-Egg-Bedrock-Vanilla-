@@ -12,7 +12,7 @@ function clientCsv (clients) {
   const fields = [
     'id', 'username', 'auth_mode', 'started_at', 'connected_at', 'login_at', 'spawned_at', 'ended_at',
     'time_to_spawn_ms', 'session_duration_ms', 'auth_result', 'ice_state', 'connection_state',
-    'latency_ms_last', 'latency_ms_average', 'disconnect_reason', 'error_count'
+    'latency_ms_last', 'latency_ms_average', 'simultaneous_hold_seconds', 'disconnect_reason', 'error_count'
   ]
   const lines = [fields.join(',')]
   for (const client of clients) {
@@ -34,6 +34,7 @@ function clientCsv (clients) {
       connection_state: client.ice?.connectionState,
       latency_ms_last: latency.at(-1),
       latency_ms_average: average,
+      simultaneous_hold_seconds: client.simultaneousHoldSeconds,
       disconnect_reason: client.disconnectReason,
       error_count: client.errors?.length || 0
     }
@@ -47,6 +48,7 @@ function reportMarkdown (result) {
   const errors = result.errors.length
     ? result.errors.map(item => `- ${item.at} — ${item.clientId || 'run'} — **${item.category}**: ${item.message}`).join('\n')
     : '- No se registraron errores.'
+  const metrics = result.laboratoryMetrics || { enabled: false, source: 'not configured', samples: [], stopReason: null }
   return `# Informe de prueba NetherNet
 
 Estado: **${result.status}**
@@ -80,6 +82,13 @@ ${result.summary}
 - Prueba de puerto UDP único: ${result.portVerification.udpSharedPortObserved ? 'observada' : 'no inspeccionada directamente'}.
 - Puertos adicionales por jugador: ${result.portVerification.additionalPortsInspected ? 'inspeccionados' : 'no inspeccionados'}.
 
+## Métricas del laboratorio
+
+- Fuente autorizada: ${metrics.enabled ? `\`${metrics.source}\`` : 'no configurada'}.
+- Muestras recibidas: ${metrics.samples.length}.
+- Parada de seguridad: ${metrics.stopReason || 'no activada'}.
+- CPU, RAM, red, jugadores, TPS/MSPT y errores sólo aparecen en \`results.json\` cuando la fuente proporcionada por el operador los entrega; no se estiman valores ausentes.
+
 ## Errores
 
 ${errors}
@@ -109,4 +118,32 @@ function writeReports (result, baseDirectory) {
   return runDirectory
 }
 
-module.exports = { clientCsv, reportMarkdown, writeReports }
+function consolidatedMarkdown (suite) {
+  const rows = suite.scenarios.map(item => `| ${item.clients} | ${item.spawnedClients ?? 'Pendiente'} | ${item.maximumSimultaneous ?? 'Pendiente'} | ${item.simultaneousHoldSeconds ?? 'Pendiente'} s | ${item.status} |`).join('\n')
+  const errors = suite.errors?.length ? `\n## Bloqueos o interrupciones\n\n${suite.errors.map(item => `- ${item.scenario}: ${item.message}`).join('\n')}\n` : ''
+  return `# Informe consolidado NetherNet
+
+Estado: **${suite.status}**
+
+Inicio: ${suite.startedAt}
+
+Fin: ${suite.completedAt}
+
+| Bots | Spawn confirmados | Máximo simultáneo | Permanencia | Resultado |
+|---:|---:|---:|---:|---|
+${rows}
+
+Los escenarios se ejecutan en orden. Un escenario posterior sólo puede comenzar si el anterior termina en PASS. Los valores pendientes no representan conexiones reales.
+${errors}
+`
+}
+
+function writeConsolidatedReport (suite, baseDirectory) {
+  const directory = path.resolve(baseDirectory, suite.runId)
+  fs.mkdirSync(directory, { recursive: true })
+  fs.writeFileSync(path.join(directory, 'results.json'), JSON.stringify(suite, null, 2) + '\n')
+  fs.writeFileSync(path.join(directory, 'REPORT.md'), consolidatedMarkdown(suite))
+  return directory
+}
+
+module.exports = { clientCsv, consolidatedMarkdown, reportMarkdown, writeConsolidatedReport, writeReports }

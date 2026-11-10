@@ -7,12 +7,15 @@ readonly MODE="${BEDROCK_NETWORK_MODE:-native}"
 readonly REQUESTED_PROFILE="${NATIVE_PROFILE:-auto}"
 readonly PORT="${SERVER_PORT:-19132}"
 readonly CONFIGURED_ALLOW_LIST="${ALLOW_LIST:-false}"
+readonly CONFIGURED_MAX_PLAYERS="${MAX_PLAYERS:-10}"
 readonly STATE_DIR=".supercores"
 readonly GUIDE_FILE="bedrock_server_how_to.html"
 readonly LAB_OFFLINE_MARKER="$STATE_DIR/lab-offline-approved"
 readonly LAB_OFFLINE_CONFIRMATION="I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_OFFLINE_LAB"
 readonly LAB_NETWORK_MARKER="$STATE_DIR/lab-network-restriction-approved"
 readonly LAB_NETWORK_CONFIRMATION="I_CONFIRM_NETWORK_ACCESS_IS_RESTRICTED_TO_AUTHORIZED_TEST_ORIGINS"
+readonly LAB_CAPACITY_MARKER="$STATE_DIR/lab-capacity-50-approved"
+readonly LAB_CAPACITY_CONFIRMATION="I_CONFIRM_THIS_LABORATORY_IS_AUTHORIZED_FOR_50_CLIENTS"
 DETECTED_VERSION="${BDS_VERSION:-unknown}"
 [[ ! -s "$STATE_DIR/bds-version" ]] || DETECTED_VERSION="$(tr -d '\r\n' < "$STATE_DIR/bds-version")"
 readonly DETECTED_VERSION
@@ -23,6 +26,11 @@ fatal() { printf '[SuperCores] ERROR: %s\n' "$*" >&2; exit 1; }
 validate_port() {
     [[ "$1" =~ ^[0-9]+$ ]] || fatal "SERVER_PORT must be an integer, got: $1"
     (( 1 <= 10#$1 && 10#$1 <= 65535 )) || fatal "SERVER_PORT must be between 1 and 65535"
+}
+
+validate_player_limit() {
+    [[ "$1" =~ ^[0-9]+$ ]] || fatal "MAX_PLAYERS must be an integer, got: $1"
+    (( 1 <= 10#$1 && 10#$1 <= 200 )) || fatal "MAX_PLAYERS must be between 1 and 200"
 }
 
 validate_boolean() {
@@ -65,6 +73,18 @@ resolve_allow_list() {
     else
         printf '%s' "$CONFIGURED_ALLOW_LIST"
     fi
+}
+
+resolve_max_players() {
+    local online_mode="$1" confirmation
+    if [[ ! -f "$LAB_CAPACITY_MARKER" ]]; then
+        printf '%s' "$CONFIGURED_MAX_PLAYERS"
+        return
+    fi
+    [[ "$online_mode" == 'false' ]] || fatal "$LAB_CAPACITY_MARKER is permitted only while the gated OFFLINE LAB mode is active"
+    confirmation="$(tr -d '\r\n' < "$LAB_CAPACITY_MARKER")"
+    [[ "$confirmation" == "$LAB_CAPACITY_CONFIRMATION" ]] || fatal "$LAB_CAPACITY_MARKER exists but does not contain the required 50-client confirmation"
+    printf '50'
 }
 
 validate_auth_combination() {
@@ -117,9 +137,9 @@ remove_property() {
 }
 
 show_native_plan() {
-    local profile="$1" public_ip="$2" online_mode="$3" allow_list="$4" authentication='Xbox'
+    local profile="$1" public_ip="$2" online_mode="$3" allow_list="$4" max_players="$5" authentication='Xbox'
     [[ "$online_mode" == 'true' ]] || authentication='OFFLINE LAB'
-    log "mode=native profile=${profile} BDS_VERSION=${DETECTED_VERSION} public=${public_ip}:${PORT} authentication=${authentication} allow-list=${allow_list}"
+    log "mode=native profile=${profile} BDS_VERSION=${DETECTED_VERSION} public=${public_ip}:${PORT} authentication=${authentication} allow-list=${allow_list} max-players=${max_players}"
     log "Wings must publish the primary allocation as both TCP/${PORT} and UDP/${PORT}"
     if [[ "$profile" == "stable-shared" ]]; then
         log "planned server-udp-ports=${public_ip}:${PORT}:${PORT}"
@@ -129,7 +149,7 @@ show_native_plan() {
 }
 
 configure_native() {
-    local profile="$1" public_ip="$2" online_mode="$3" allow_list="$4" mapped_ip="$2"
+    local profile="$1" public_ip="$2" online_mode="$3" allow_list="$4" max_players="$5" mapped_ip="$2"
     [[ -f "$PROPERTIES_FILE" ]] || fatal "$PROPERTIES_FILE is missing"
     mkdir -p "$STATE_DIR/backups"
     if [[ ! -f "$STATE_DIR/backups/server.properties.pre-native" ]]; then
@@ -140,6 +160,7 @@ configure_native() {
     set_property server-ip ""
     set_property online-mode "$online_mode"
     set_property allow-list "$allow_list"
+    set_property max-players "$max_players"
     set_property enable-lan-visibility false
 
     case "$profile" in
@@ -161,23 +182,26 @@ configure_native() {
 run_native() {
     validate_port "$PORT"
     validate_boolean 'ALLOW_LIST' "$CONFIGURED_ALLOW_LIST"
-    local profile public_ip online_mode allow_list
+    validate_player_limit "$CONFIGURED_MAX_PLAYERS"
+    local profile public_ip online_mode allow_list max_players
     profile="$(detect_profile)"
     public_ip="$(resolve_public_ip)"
     online_mode="$(resolve_online_mode)"
     allow_list="$(resolve_allow_list "$online_mode")"
+    max_players="$(resolve_max_players "$online_mode")"
     validate_auth_combination "$online_mode" "$allow_list"
-    show_native_plan "$profile" "$public_ip" "$online_mode" "$allow_list"
+    validate_player_limit "$max_players"
+    show_native_plan "$profile" "$public_ip" "$online_mode" "$allow_list" "$max_players"
     if [[ "${SUPERCORES_CHECK_ONLY:-0}" == "1" || "${1:-}" == "--check" ]]; then
         log "check-only: no files changed and no process started"
         return
     fi
     [[ -x "$BDS_EXECUTABLE" ]] || fatal "$BDS_EXECUTABLE is missing or not executable"
-    configure_native "$profile" "$public_ip" "$online_mode" "$allow_list"
+    configure_native "$profile" "$public_ip" "$online_mode" "$allow_list" "$max_players"
     if [[ "$online_mode" == 'true' ]]; then
         log "starting BDS directly with Xbox authentication enabled"
     else
-        log "WARNING: starting network-restricted laboratory with authentication and allowlist disabled; remove $LAB_OFFLINE_MARKER and $LAB_NETWORK_MARKER, then restart immediately after testing"
+        log "WARNING: starting network-restricted laboratory with authentication and allowlist disabled; remove $LAB_OFFLINE_MARKER, $LAB_NETWORK_MARKER and $LAB_CAPACITY_MARKER, then restart immediately after testing"
     fi
     exec env LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-.}" "$BDS_EXECUTABLE"
 }

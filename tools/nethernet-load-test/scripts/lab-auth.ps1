@@ -19,6 +19,8 @@ $confirmation = 'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_OFFLINE_LAB'
 $networkMarker = Join-Path $stateDirectory 'lab-network-restriction-approved'
 $networkConfirmation = 'I_CONFIRM_NETWORK_ACCESS_IS_RESTRICTED_TO_AUTHORIZED_TEST_ORIGINS'
 $networkDetails = Join-Path $stateDirectory 'lab-network-restriction-details.txt'
+$capacityMarker = Join-Path $stateDirectory 'lab-capacity-50-approved'
+$capacityDetails = Join-Path $stateDirectory 'lab-capacity-50-details.txt'
 
 if ($Mode -eq 'offline') {
     if (-not $NetworkRestrictionConfirmed -or [string]::IsNullOrWhiteSpace($AuthorizedOrigins)) {
@@ -31,7 +33,7 @@ if ($Mode -eq 'offline') {
     Write-Host "Offline laboratory gates enabled. Restart applies online-mode=false and allow-list=false."
     Write-Warning 'These files only attest an already-applied external restriction; they do not modify firewall, Wings, Docker, or provider ACLs.'
 } else {
-    foreach ($path in @($marker, $networkMarker, $networkDetails)) {
+    foreach ($path in @($marker, $networkMarker, $networkDetails, $capacityMarker, $capacityDetails)) {
         if (Test-Path -LiteralPath $path) {
             Remove-Item -LiteralPath $path -Force
         }

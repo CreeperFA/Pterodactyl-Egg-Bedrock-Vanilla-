@@ -22,12 +22,12 @@ La documentación del repositorio afirma pruebas live smoke sobre las cuatro bui
 ## Validación ejecutada localmente
 
 - Instalación reproducible del monorepo con pnpm 12.14.0 y lockfile: PASS.
-- Tests upstream seleccionados de transporte HTTP NetherNet, firma de identidad, opciones de autenticación y familias de versión: 12/12 PASS.
-- Tests propios de seguridad/configuración, diagnósticos, informes, conteo posterior a `spawn` y continuidad tras desconexión: 12/12 PASS.
+- Tests upstream seleccionados de transporte HTTP NetherNet, firma de identidad, autenticación offline y familias de versión: 28/28 PASS (9 de cliente/transporte/comandos y 19 de datos/versiones).
+- Tests propios de seguridad/configuración, diagnósticos, informes, conteo posterior a `spawn`, continuidad tras desconexión, parada por recursos y suite progresiva: 23/23 PASS.
 - Sintaxis de JavaScript y scripts Bash: PASS.
 - Build/ejecución de la imagen Docker: NOT TESTED; Docker no estaba instalado en este entorno.
 - Conexión a `102.129.137.35:9000`: NOT TESTED.
-- 1/2/5/10 clientes reales: NOT TESTED.
+- 1/10/30/50 clientes reales: NOT TESTED.
 - Microsoft/Xbox: NOT TESTED; no había identidades/tokens disponibles en este entorno.
 
 ## Alternativas revisadas

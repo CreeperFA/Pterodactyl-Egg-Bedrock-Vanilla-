@@ -10,21 +10,31 @@
     "confirmed": false,
     "target": "102.129.137.35:9000",
     "offlineApproved": false,
-    "note": "Set confirmed=true only when the operator authorizes this exact laboratory run."
+    "networkRestrictionVerified": false,
+    "serverCapacity": 10,
+    "scaleApproved": {
+      "high": false,
+      "maximum": false
+    },
+    "note": "Confirm ACL, capacity and each scale gate only during an authorized laboratory window."
   },
   "auth": {
-    "mode": "microsoft",
-    "clients": [
-      {
-        "id": "bot-01",
-        "username": "account-01",
-        "profilesFolder": "C:\\supercores-secrets\\bedboo-account-01"
-      }
-    ]
+    "mode": "offline",
+    "generateOfflineClients": true
   },
   "scenario": "basic",
   "intervalSeconds": 4,
   "connectTimeoutSeconds": 45,
   "shutdownTimeoutSeconds": 10,
+  "recoverySeconds": 30,
+  "observability": {
+    "enabled": false,
+    "metricsFile": "C:\\supercores-metrics\\bedrock-lab.json",
+    "sampleIntervalSeconds": 5,
+    "thresholds": {
+      "cpuPercent": 90,
+      "memoryPercent": 90
+    }
+  },
   "reportDirectory": "reports"
 }

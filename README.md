@@ -5,7 +5,7 @@ modo proxy anterior usado como rollback. La variante nativa ejecuta `bedrock_ser
 mantiene `online-mode=true` y usa una única asignación de Pterodactyl publicada como TCP y UDP.
 
 > Estado: **experimental, no aprobado para producción**. La configuración fue validada localmente,
-> pero todavía no se ejecutaron pruebas reales de 2, 5 y 10 clientes en un nodo Wings externo.
+> pero todavía no se ejecutaron pruebas automatizadas reales de 1, 10, 30 y 50 clientes en un nodo Wings externo.
 
 ## Artefactos
 

@@ -6,13 +6,13 @@ Fecha: 9 de noviembre de 2026. Resultado global: **experimental; no candidato a 
 
 - Rama: `nethernet-load-test`, derivada de `native-nethernet-experimental`.
 - Herramienta aislada: `tools/nethernet-load-test/`.
-- Tests locales de la herramienta: 12/12 PASS, incluida la ruptura irreversible del contador continuo tras una desconexión.
-- Tests seleccionados de transporte/versión de bedboo: 12/12 PASS en el commit
+- Tests locales de la herramienta: 23/23 PASS para escenarios 1/10/30/50, suite progresiva, cancelación, timeout/incompleto, pérdida de red, parada por recursos y continuidad tras desconexión.
+- Tests seleccionados de transporte/autenticación/versión de bedboo: 28/28 PASS en el commit
   `254bfcc4d05ddad767ac95e6208f6e1942dea8f3`.
 - BDS 1.26.63.1 rechazó la preparación inicial `online-mode=false` + `allow-list=true` con código 2; no fue un fallo de NetherNet ni memoria.
 - El startup corregido aplica OFFLINE `false/false` sólo con aprobación y constancia separada de restricción de red; sin ambas aborta antes de escribir propiedades.
 - Servidor autorizado `102.129.137.35:9000`: pruebas bloqueadas hasta confirmar una ACL externa TCP+UDP a los orígenes de laboratorio.
-- Escenarios automatizados de 1/2/5/10 clientes: **NOT TESTED**.
+- Escenarios automatizados de 1/10/30/50 clientes: **NOT TESTED**.
 - Wings, Docker, firewall, mundos, allocations y servidores de clientes: sin cambios.
 
 Consulte `tools/nethernet-load-test/REPORT.md` y `RESEARCH.md` para los requisitos de ejecución y hallazgos.
@@ -48,7 +48,7 @@ Comando reproducible:
 - Importación real en Panel/Pterodactyl.
 - Arranque del BDS Linux oficial dentro de Wings/Docker.
 - Consola interactiva y comando `stop` con el Egg nuevo.
-- Conexión Minecraft real de 1, 2, 5 o 10 jugadores.
+- Conexión Minecraft real de 1, 10, 30 o 50 jugadores.
 - Redes externas, CGNAT, NAT simétrico, IPv6 o TURN.
 - Reinicio de contenedor y persistencia real del mundo.
 - Actualización o migración de un servidor existente.

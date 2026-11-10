@@ -2,7 +2,7 @@
 
 const assert = require('assert')
 const { describe, it } = require('node:test')
-const { clientCsv, reportMarkdown } = require('../src/reporter')
+const { clientCsv, consolidatedMarkdown, reportMarkdown } = require('../src/reporter')
 
 describe('reports', () => {
   const result = {
@@ -14,7 +14,7 @@ describe('reports', () => {
     target: { host: '127.0.0.1', port: 9000, bdsVersion: '1.26.63.1', transport: 'nethernet' },
     library: { name: 'bedboo', version: '0.0.0', commit: 'abc' },
     authMode: 'microsoft',
-    scenario: { name: 'basic', clients: 1, durationSeconds: 60 },
+    scenario: { name: 'basic', clients: 1, durationSeconds: 180 },
     metrics: { spawnedClients: 0, maximumSimultaneous: 0, simultaneousHoldSeconds: 0 },
     preflight: null,
     portVerification: { udpSharedPortObserved: false, additionalPortsInspected: false },
@@ -33,5 +33,15 @@ describe('reports', () => {
     const csv = clientCsv([{ id: 'bot,1', errors: [], latencySamplesMs: [] }])
     assert.match(csv, /^id,username,/)
     assert.match(csv, /"bot,1"/)
+  })
+
+  it('renders the four-scenario consolidated matrix without claiming pending results', () => {
+    const report = consolidatedMarkdown({
+      status: 'NOT TESTED',
+      startedAt: 'a',
+      completedAt: 'b',
+      scenarios: [1, 10, 30, 50].map(clients => ({ clients, status: 'NOT TESTED' }))
+    })
+    assert.match(report, /\| 50 \| Pendiente \| Pendiente \| Pendiente s \| NOT TESTED \|/)
   })
 })
