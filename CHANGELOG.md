@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.0.0-beta.1 — Native NetherNet Beta
+## v2.0.0-beta.2 — Native NetherNet Beta
 
 - Añade ejecución Native directa del BDS oficial con una allocation TCP+UDP.
 - Detecta perfiles estable/Preview desde la guía incluida en el paquete.
@@ -12,3 +12,6 @@
 
 Breaking change: Native sustituye al proxy como modo predeterminado del Egg nuevo. Los servidores existentes no
 cambian automáticamente y requieren el procedimiento manual documentado.
+
+`v2.0.0-beta.1` sólo disparó una ejecución CI fallida y no produjo una GitHub Release. Beta 2 valida por separado
+el artefacto publicado y la regeneración para tolerar el formato JSON distinto de Windows PowerShell y PowerShell 7.

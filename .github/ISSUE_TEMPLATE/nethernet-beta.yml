@@ -14,7 +14,7 @@ body:
   - type: input
     attributes:
       label: Tag del Egg y versión BDS
-      placeholder: v2.0.0-beta.1 / 1.26.63.1
+      placeholder: v2.0.0-beta.2 / 1.26.63.1
     validations:
       required: true
   - type: dropdown

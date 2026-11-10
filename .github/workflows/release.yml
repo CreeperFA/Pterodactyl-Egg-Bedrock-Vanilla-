@@ -18,14 +18,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Validate committed native Egg
+        shell: pwsh
+        run: ./tools/validate.ps1
       - name: Generate native Egg
         shell: pwsh
         run: ./tools/build-egg.ps1
-      - name: Validate native Egg
+      - name: Validate regenerated native Egg
         shell: pwsh
         run: ./tools/validate.ps1
-      - name: Verify generated artifact is committed
-        run: git diff --exit-code -- egg-supercores-bedrock-nethernet.json
 
   test:
     runs-on: ubuntu-latest

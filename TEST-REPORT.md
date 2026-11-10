@@ -1,4 +1,4 @@
-# Estado de validación de v2.0.0-beta.1
+# Estado de validación de v2.0.0-beta.2
 
 Resultado: **beta pública; configuración validada localmente, multijugador comunitario pendiente**.
 
