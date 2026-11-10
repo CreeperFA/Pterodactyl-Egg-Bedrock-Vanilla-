@@ -14,6 +14,19 @@ permissions:
   contents: read
 
 jobs:
+  native-egg:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Generate native Egg
+        shell: pwsh
+        run: ./tools/build-egg.ps1
+      - name: Validate native Egg
+        shell: pwsh
+        run: ./tools/validate.ps1
+      - name: Verify generated artifact is committed
+        run: git diff --exit-code -- egg-supercores-bedrock-nethernet.json
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -58,7 +71,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: build
+    needs: [build, native-egg]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -73,14 +86,18 @@ jobs:
           merge-multiple: true
       - name: Add deployment files and checksums
         run: |
+          cp egg-supercores-bedrock-nethernet.json dist/
           cp egg-vanilla-bedrock-proxy.json dist/
           cp proxy/config.example.json dist/config.example.json
+          cp scripts/supercores-start.sh dist/
+          cp CHANGELOG.md RELEASE_NOTES.md INSTALLATION.md PRODUCTION-UPDATE.md MIGRATION.md ROLLBACK.md COMPATIBILITY.md TEST-REPORT.md COMMUNITY-TESTING.md dist/
           cd dist
-          sha256sum bedrock-proxy-* egg-vanilla-bedrock-proxy.json config.example.json > SHA256SUMS
+          sha256sum * > SHA256SUMS
       - name: Publish release
         run: |
           gh release create "$TAG" dist/* \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "$TAG" \
-            --generate-notes
+            --title "Minecraft Bedrock Vanilla — Native NetherNet Beta" \
+            --notes-file RELEASE_NOTES.md \
+            --prerelease

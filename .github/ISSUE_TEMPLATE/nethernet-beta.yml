@@ -1,0 +1,55 @@
+name: NetherNet beta test
+description: Reporta una prueba real del Egg Native NetherNet
+title: "[NetherNet beta] "
+labels: ["nethernet-beta"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Seguridad
+      options:
+        - label: Eliminé credenciales, claves, IP completa y datos personales del reporte.
+          required: true
+        - label: Probé un servidor propio o autorizado.
+          required: true
+  - type: input
+    attributes:
+      label: Tag del Egg y versión BDS
+      placeholder: v2.0.0-beta.1 / 1.26.63.1
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Tipo de instalación
+      options: [Servidor nuevo, Actualización, Otro]
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Panel, Wings y sistema del nodo
+      placeholder: Pterodactyl/Wings versiones; Debian 12
+  - type: input
+    attributes:
+      label: Perfil y jugadores simultáneos
+      placeholder: stable-shared; 2 jugadores
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Resultado
+      options: [PASS, Fallo antes de spawn, Desconexión posterior, Lag, Otro]
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Señalización, ICE, spawn y permanencia
+      description: Describe cada fase y las redes de origen sin publicar direcciones completas.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Consola y error del cliente
+      render: shell
+  - type: textarea
+    attributes:
+      label: Reconexión, reinicio y rollback
+      description: Indica qué se probó y si el mundo/identidad persistieron.

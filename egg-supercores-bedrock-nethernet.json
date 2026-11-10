@@ -1,0 +1,206 @@
+{
+    "_comment":  "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+    "meta":  {
+                 "version":  "PTDL_v2",
+                 "update_url":  null
+             },
+    "exported_at":  "2026-11-09T19:00:00+00:00",
+    "name":  "Minecraft Bedrock Vanilla (Native NetherNet Beta)",
+    "author":  "parker@parkervcp.com",
+    "description":  "Public beta dual-mode Bedrock egg. Native mode runs supported BDS builds directly on one TCP+UDP allocation with Xbox authentication enabled; explicit legacy_proxy mode preserves the v1.3.0 rollback. Community multiplayer validation is still pending.",
+    "features":  [
+                     "pid_limit"
+                 ],
+    "docker_images":  {
+                          "ghcr.io/ptero-eggs/yolks:debian":  "ghcr.io/ptero-eggs/yolks:debian"
+                      },
+    "file_denylist":  [
+
+                      ],
+    "startup":  "bash ./supercores-start.sh",
+    "config":  {
+                   "files":  "{\"server.properties\":{\"parser\":\"properties\",\"find\":{\"server-name\":\"{{server.build.env.SERVERNAME}}\",\"allow-list\":\"{{server.build.env.ALLOW_LIST}}\",\"difficulty\":\"{{server.build.env.DIFFICULTY}}\",\"gamemode\":\"{{server.build.env.GAMEMODE}}\",\"max-players\":\"{{server.build.env.MAX_PLAYERS}}\",\"allow-cheats\":\"{{server.build.env.CHEATS}}\"}}}",
+                   "startup":  "{\"done\":\"Server started\"}",
+                   "logs":  "{}",
+                   "stop":  "stop"
+               },
+    "scripts":  {
+                    "installation":  {
+                                         "script":  "#!/usr/bin/env bash\nset -Eeuo pipefail\n\ncd /mnt/server\napt-get update\napt-get install -y --no-install-recommends ca-certificates curl jq unzip\n\nchannel=\"${BEDROCK_CHANNEL:-stable}\"\nversion=\"${BEDROCK_VERSION:-latest}\"\ncase \"$channel\" in stable|preview) ;; *) echo \"BEDROCK_CHANNEL must be stable or preview\" \u003e\u00262; exit 1 ;; esac\n\napi=\u0027https://net-secondary.web.minecraft-services.net/api/v1.0/download/links\u0027\nif [[ \"$version\" == \"latest\" ]]; then\n    kind=\u0027serverBedrockLinux\u0027\n    [[ \"$channel\" == \"preview\" ]] \u0026\u0026 kind=\u0027serverBedrockPreviewLinux\u0027\n    download_url=\"$(curl -fsSL -A \u0027Mozilla/5.0\u0027 \"$api\" | jq -er --arg kind \"$kind\" \u0027.result.links[] | select(.downloadType == $kind) | .downloadUrl\u0027)\"\nelse\n    base=\u0027https://www.minecraft.net/bedrockdedicatedserver/bin-linux\u0027\n    [[ \"$channel\" == \"preview\" ]] \u0026\u0026 base=\u0027https://www.minecraft.net/bedrockdedicatedserver/bin-linux-preview\u0027\n    download_url=\"${base}/bedrock-server-${version}.zip\"\nfi\n\nmkdir -p .supercores/backups\nstamp=\"$(date -u +%Y%m%dT%H%M%SZ)\"\nbackup_dir=\".supercores/backups/install-${stamp}\"\nmkdir -p \"$backup_dir\"\nfor item in server.properties permissions.json allowlist.json whitelist.json supercores-start.sh bedrock-proxy-linux; do\n    [[ ! -e \"$item\" ]] || cp -a \"$item\" \"$backup_dir/\"\ndone\n\narchive=\"/tmp/bedrock-server-${stamp}.zip\"\ncurl -fL -A \u0027Mozilla/5.0\u0027 -H \u0027Accept-Language: en\u0027 -o \"$archive\" \"$download_url\"\narchive_sha256=\"$(sha256sum \"$archive\" | awk \u0027{print $1}\u0027)\"\n\n# Never delete unknown files. Existing worlds, add-ons and custom files are not part of the official\n# archive and therefore remain in place. Customer-owned configuration is explicitly excluded.\nunzip -o \"$archive\" -d /mnt/server \\\n    -x \u0027worlds/*\u0027 \u0027server.properties\u0027 \u0027permissions.json\u0027 \u0027allowlist.json\u0027 \u0027whitelist.json\u0027 \\\n       \u0027development_behavior_packs/*\u0027 \u0027development_resource_packs/*\u0027\nfor item in server.properties permissions.json allowlist.json; do\n    [[ -e \"$item\" ]] || unzip -jo \"$archive\" \"$item\" -d /mnt/server\ndone\n\nresolved_version=\"$(basename \"$download_url\" | sed -n \u0027s/^bedrock-server-\\(.*\\)\\.zip$/\\1/p\u0027)\"\nprintf \u0027%s\\n\u0027 \"$resolved_version\" \u003e .supercores/bds-version\nprintf \u0027%s\\n\u0027 \"$download_url\" \u003e .supercores/bds-source-url\nprintf \u0027%s\\n\u0027 \"$archive_sha256\" \u003e .supercores/bds-archive-sha256\n\nprintf \u0027%s\u0027 \u0027IyEvdXNyL2Jpbi9lbnYgYmFzaApzZXQgLUVldW8gcGlwZWZhaWwKCnJlYWRvbmx5IFBST1BFUlRJRVNfRklMRT0iJHtQUk9QRVJUSUVTX0ZJTEU6LXNlcnZlci5wcm9wZXJ0aWVzfSIKcmVhZG9ubHkgQkRTX0VYRUNVVEFCTEU9IiR7RVhFQ1VUQUJMRTotLi9iZWRyb2NrX3NlcnZlcn0iCnJlYWRvbmx5IE1PREU9IiR7QkVEUk9DS19ORVRXT1JLX01PREU6LW5hdGl2ZX0iCnJlYWRvbmx5IFJFUVVFU1RFRF9QUk9GSUxFPSIke05BVElWRV9QUk9GSUxFOi1hdXRvfSIKcmVhZG9ubHkgUE9SVD0iJHtTRVJWRVJfUE9SVDotMTkxMzJ9IgpyZWFkb25seSBDT05GSUdVUkVEX0FMTE9XX0xJU1Q9IiR7QUxMT1dfTElTVDotZmFsc2V9IgpyZWFkb25seSBDT05GSUdVUkVEX01BWF9QTEFZRVJTPSIke01BWF9QTEFZRVJTOi0xMH0iCnJlYWRvbmx5IFNUQVRFX0RJUj0iLnN1cGVyY29yZXMiCnJlYWRvbmx5IEdVSURFX0ZJTEU9ImJlZHJvY2tfc2VydmVyX2hvd190by5odG1sIgpERVRFQ1RFRF9WRVJTSU9OPSIke0JEU19WRVJTSU9OOi11bmtub3dufSIKW1sgISAtcyAiJFNUQVRFX0RJUi9iZHMtdmVyc2lvbiIgXV0gfHwgREVURUNURURfVkVSU0lPTj0iJCh0ciAtZCAnXHJcbicgPCAiJFNUQVRFX0RJUi9iZHMtdmVyc2lvbiIpIgpyZWFkb25seSBERVRFQ1RFRF9WRVJTSU9OCgpsb2coKSB7IHByaW50ZiAnW1N1cGVyQ29yZXNdICVzXG4nICIkKiI7IH0KZmF0YWwoKSB7IHByaW50ZiAnW1N1cGVyQ29yZXNdIEVSUk9SOiAlc1xuJyAiJCoiID4mMjsgZXhpdCAxOyB9Cgp2YWxpZGF0ZV9wb3J0KCkgewogICAgW1sgIiQxIiA9fiBeWzAtOV0rJCBdXSB8fCBmYXRhbCAiU0VSVkVSX1BPUlQgbXVzdCBiZSBhbiBpbnRlZ2VyLCBnb3Q6ICQxIgogICAgKCggMSA8PSAxMCMkMSAmJiAxMCMkMSA8PSA2NTUzNSApKSB8fCBmYXRhbCAiU0VSVkVSX1BPUlQgbXVzdCBiZSBiZXR3ZWVuIDEgYW5kIDY1NTM1Igp9Cgp2YWxpZGF0ZV9wbGF5ZXJfbGltaXQoKSB7CiAgICBbWyAiJDEiID1+IF5bMC05XSskIF1dIHx8IGZhdGFsICJNQVhfUExBWUVSUyBtdXN0IGJlIGFuIGludGVnZXIsIGdvdDogJDEiCiAgICAoKCAxIDw9IDEwIyQxICYmIDEwIyQxIDw9IDIwMCApKSB8fCBmYXRhbCAiTUFYX1BMQVlFUlMgbXVzdCBiZSBiZXR3ZWVuIDEgYW5kIDIwMCIKfQoKdmFsaWRhdGVfYm9vbGVhbigpIHsKICAgIFtbICIkMiIgPT0gJ3RydWUnIHx8ICIkMiIgPT0gJ2ZhbHNlJyBdXSB8fCBmYXRhbCAiJDEgbXVzdCBiZSB0cnVlIG9yIGZhbHNlLCBnb3Q6ICQyIgp9Cgp2YWxpZGF0ZV9pcF9saXRlcmFsKCkgewogICAgbG9jYWwgdmFsdWU9IiQxIgogICAgW1sgLW4gIiR2YWx1ZSIgJiYgIiR2YWx1ZSIgIT0gIjAuMC4wLjAiICYmICIkdmFsdWUiICE9ICI6OiIgXV0gfHwgcmV0dXJuIDEKICAgIGlmIFtbICIkdmFsdWUiID09ICouKiAmJiAiJHZhbHVlIiAhPSAqOiogXV07IHRoZW4KICAgICAgICBsb2NhbCBhIGIgYyBkCiAgICAgICAgSUZTPS4gcmVhZCAtciBhIGIgYyBkIDw8PCAiJHZhbHVlIgogICAgICAgIFtbIC1uICIkYSIgJiYgLW4gIiRiIiAmJiAtbiAiJGMiICYmIC1uICIkZCIgXV0gfHwgcmV0dXJuIDEKICAgICAgICBbWyAiJGEiID1+IF5bMC05XSskICYmICIkYiIgPX4gXlswLTldKyQgJiYgIiRjIiA9fiBeWzAtOV0rJCAmJiAiJGQiID1+IF5bMC05XSskIF1dIHx8IHJldHVybiAxCiAgICAgICAgKCggMTAjJGEgPD0gMjU1ICYmIDEwIyRiIDw9IDI1NSAmJiAxMCMkYyA8PSAyNTUgJiYgMTAjJGQgPD0gMjU1ICkpIHx8IHJldHVybiAxCiAgICAgICAgKCggMTAjJGEgIT0gMCAmJiAxMCMkYSAhPSAxMCAmJiAxMCMkYSAhPSAxMjcgJiYgMTAjJGEgPCAyMjQgKSkgfHwgcmV0dXJuIDEKICAgICAgICAhICgoIDEwIyRhID09IDEwMCAmJiA2NCA8PSAxMCMkYiAmJiAxMCMkYiA8PSAxMjcgKSkgfHwgcmV0dXJuIDEKICAgICAgICAhICgoIDEwIyRhID09IDE2OSAmJiAxMCMkYiA9PSAyNTQgKSkgfHwgcmV0dXJuIDEKICAgICAgICAhICgoIDEwIyRhID09IDE3MiAmJiAxNiA8PSAxMCMkYiAmJiAxMCMkYiA8PSAzMSApKSB8fCByZXR1cm4gMQogICAgICAgICEgKCggMTAjJGEgPT0gMTkyICYmIDEwIyRiID09IDE2OCApKSB8fCByZXR1cm4gMQogICAgICAgIHJldHVybiAwCiAgICBmaQogICAgW1sgIiR2YWx1ZSIgPX4gXlswLTlBLUZhLWY6XSskIF1dIHx8IHJldHVybiAxCiAgICBsb2NhbCBsb3dlcj0iJHt2YWx1ZSwsfSIKICAgIFtbICIkbG93ZXIiICE9ICI6OjEiICYmICIkbG93ZXIiICE9IGZjKiAmJiAiJGxvd2VyIiAhPSBmZCogJiYgISAiJGxvd2VyIiA9fiBeZmVbODlhYl0gXV0gfHwgcmV0dXJuIDEKfQoKcmVzb2x2ZV9wdWJsaWNfaXAoKSB7CiAgICBsb2NhbCB2YWx1ZT0iJHtQVUJMSUNfSVA6LX0iCiAgICBpZiBbWyAteiAiJHZhbHVlIiB8fCAiJHZhbHVlIiA9PSAiMC4wLjAuMCIgfHwgIiR2YWx1ZSIgPT0gIjo6IiBdXTsgdGhlbgogICAgICAgIHZhbHVlPSIke1NFUlZFUl9JUDotfSIKICAgIGZpCiAgICB2YWxpZGF0ZV9pcF9saXRlcmFsICIkdmFsdWUiIHx8IGZhdGFsICJzZXQgUFVCTElDX0lQIHRvIHRoZSBsaXRlcmFsIHB1YmxpYyBJUCByZWNlaXZpbmcgVENQK1VEUCAke1BPUlR9OyBTRVJWRVJfSVA9JHtTRVJWRVJfSVA6LXVuc2V0fSBpcyBub3QgYWR2ZXJ0aXNhYmxlIgogICAgcHJpbnRmICclcycgIiR2YWx1ZSIKfQoKZGV0ZWN0X3Byb2ZpbGUoKSB7CiAgICBpZiBbWyAiJFJFUVVFU1RFRF9QUk9GSUxFIiAhPSAiYXV0byIgXV07IHRoZW4KICAgICAgICBjYXNlICIkUkVRVUVTVEVEX1BST0ZJTEUiIGluCiAgICAgICAgICAgIHN0YWJsZS1zaGFyZWR8cHJldmlldy1zaGFyZWQpIHByaW50ZiAnJXMnICIkUkVRVUVTVEVEX1BST0ZJTEUiOyByZXR1cm4gOzsKICAgICAgICAgICAgKikgZmF0YWwgIk5BVElWRV9QUk9GSUxFIG11c3QgYmUgYXV0bywgc3RhYmxlLXNoYXJlZCwgb3IgcHJldmlldy1zaGFyZWQiIDs7CiAgICAgICAgZXNhYwogICAgZmkKICAgIFtbIC1mICIkR1VJREVfRklMRSIgXV0gfHwgZmF0YWwgIiRHVUlERV9GSUxFIGlzIG1pc3Npbmc7IGNhbm5vdCBzYWZlbHkgZGV0ZWN0IG5hdGl2ZSBOZXRoZXJOZXQgY2FwYWJpbGl0aWVzIgogICAgaWYgZ3JlcCAtcSAnc2VydmVyLXB1YmxpYy1pcCcgIiRHVUlERV9GSUxFIjsgdGhlbgogICAgICAgIHByaW50ZiAncHJldmlldy1zaGFyZWQnCiAgICBlbGlmIGdyZXAgLXEgJ1NpbmdsZSBzaGFyZWQgcG9ydCcgIiRHVUlERV9GSUxFIjsgdGhlbgogICAgICAgIHByaW50ZiAnc3RhYmxlLXNoYXJlZCcKICAgIGVsc2UKICAgICAgICBmYXRhbCAidGhpcyBCRFMgcGFja2FnZSBkb2VzIG5vdCBkb2N1bWVudCBzaGFyZWQtcG9ydCBOZXRoZXJOZXQ7IGtlZXAgQkVEUk9DS19ORVRXT1JLX01PREU9bGVnYWN5X3Byb3h5IgogICAgZmkKfQoKc2V0X3Byb3BlcnR5KCkgewogICAgbG9jYWwga2V5PSIkMSIgdmFsdWU9IiQyIiB0bXAKICAgIHRtcD0iJChta3RlbXAgIiR7UFJPUEVSVElFU19GSUxFfS5YWFhYWFgiKSIKICAgIGF3ayAtdiBrZXk9IiRrZXkiIC12IHZhbHVlPSIkdmFsdWUiICcKICAgICAgICBCRUdJTiB7IGZvdW5kID0gMCB9CiAgICAgICAgJDAgfiAiXltbOnNwYWNlOl1dKiIga2V5ICI9IiAmJiAkMCAhfiAiXltbOnNwYWNlOl1dKiMiIHsKICAgICAgICAgICAgaWYgKCFmb3VuZCkgcHJpbnQga2V5ICI9IiB2YWx1ZQogICAgICAgICAgICBmb3VuZCA9IDEKICAgICAgICAgICAgbmV4dAogICAgICAgIH0KICAgICAgICB7IHByaW50IH0KICAgICAgICBFTkQgeyBpZiAoIWZvdW5kKSBwcmludCBrZXkgIj0iIHZhbHVlIH0KICAgICcgIiRQUk9QRVJUSUVTX0ZJTEUiID4gIiR0bXAiCiAgICBtdiAtZiAiJHRtcCIgIiRQUk9QRVJUSUVTX0ZJTEUiCn0KCnJlbW92ZV9wcm9wZXJ0eSgpIHsKICAgIGxvY2FsIGtleT0iJDEiIHRtcAogICAgdG1wPSIkKG1rdGVtcCAiJHtQUk9QRVJUSUVTX0ZJTEV9LlhYWFhYWCIpIgogICAgYXdrIC12IGtleT0iJGtleSIgJyQwICF+ICJeW1s6c3BhY2U6XV0qIiBrZXkgIj0iIHx8ICQwIH4gIl5bWzpzcGFjZTpdXSojIiB7IHByaW50IH0nICIkUFJPUEVSVElFU19GSUxFIiA+ICIkdG1wIgogICAgbXYgLWYgIiR0bXAiICIkUFJPUEVSVElFU19GSUxFIgp9CgpzaG93X25hdGl2ZV9wbGFuKCkgewogICAgbG9jYWwgcHJvZmlsZT0iJDEiIHB1YmxpY19pcD0iJDIiCiAgICBsb2cgIm1vZGU9bmF0aXZlIHByb2ZpbGU9JHtwcm9maWxlfSBCRFNfVkVSU0lPTj0ke0RFVEVDVEVEX1ZFUlNJT059IHB1YmxpYz0ke3B1YmxpY19pcH06JHtQT1JUfSIKICAgIGxvZyAiV2luZ3MgbXVzdCBwdWJsaXNoIHRoZSBwcmltYXJ5IGFsbG9jYXRpb24gYXMgYm90aCBUQ1AvJHtQT1JUfSBhbmQgVURQLyR7UE9SVH0iCiAgICBpZiBbWyAiJHByb2ZpbGUiID09ICJzdGFibGUtc2hhcmVkIiBdXTsgdGhlbgogICAgICAgIGxvZyAicGxhbm5lZCBzZXJ2ZXItdWRwLXBvcnRzPSR7cHVibGljX2lwfToke1BPUlR9OiR7UE9SVH0iCiAgICBlbHNlCiAgICAgICAgbG9nICJwbGFubmVkIHNlcnZlci1wdWJsaWMtaXA9JHtwdWJsaWNfaXB9OyBzZXJ2ZXItdWRwLXBvcnRzPSR7UE9SVH0iCiAgICBmaQp9Cgpjb25maWd1cmVfbmF0aXZlKCkgewogICAgbG9jYWwgcHJvZmlsZT0iJDEiIHB1YmxpY19pcD0iJDIiIG1hcHBlZF9pcD0iJDIiCiAgICBbWyAtZiAiJFBST1BFUlRJRVNfRklMRSIgXV0gfHwgZmF0YWwgIiRQUk9QRVJUSUVTX0ZJTEUgaXMgbWlzc2luZyIKICAgIG1rZGlyIC1wICIkU1RBVEVfRElSL2JhY2t1cHMiCiAgICBpZiBbWyAhIC1mICIkU1RBVEVfRElSL2JhY2t1cHMvc2VydmVyLnByb3BlcnRpZXMucHJlLW5hdGl2ZSIgXV07IHRoZW4KICAgICAgICBjcCAtcCAiJFBST1BFUlRJRVNfRklMRSIgIiRTVEFURV9ESVIvYmFja3Vwcy9zZXJ2ZXIucHJvcGVydGllcy5wcmUtbmF0aXZlIgogICAgZmkKCiAgICBzZXRfcHJvcGVydHkgc2VydmVyLXBvcnQgIiRQT1JUIgogICAgc2V0X3Byb3BlcnR5IHNlcnZlci1pcCAiIgogICAgc2V0X3Byb3BlcnR5IG9ubGluZS1tb2RlIHRydWUKICAgIHNldF9wcm9wZXJ0eSBhbGxvdy1saXN0ICIkQ09ORklHVVJFRF9BTExPV19MSVNUIgogICAgc2V0X3Byb3BlcnR5IG1heC1wbGF5ZXJzICIkQ09ORklHVVJFRF9NQVhfUExBWUVSUyIKICAgIHNldF9wcm9wZXJ0eSBlbmFibGUtbGFuLXZpc2liaWxpdHkgZmFsc2UKCiAgICBjYXNlICIkcHJvZmlsZSIgaW4KICAgICAgICBzdGFibGUtc2hhcmVkKQogICAgICAgICAgICBzZXRfcHJvcGVydHkgdHJhbnNwb3J0IG5ldGhlcm5ldAogICAgICAgICAgICByZW1vdmVfcHJvcGVydHkgc2VydmVyLXB1YmxpYy1pcAogICAgICAgICAgICBbWyAiJG1hcHBlZF9pcCIgPT0gKjoqIF1dICYmIG1hcHBlZF9pcD0iWyRtYXBwZWRfaXBdIgogICAgICAgICAgICBzZXRfcHJvcGVydHkgc2VydmVyLXVkcC1wb3J0cyAiJHttYXBwZWRfaXB9OiR7UE9SVH06JHtQT1JUfSIKICAgICAgICAgICAgOzsKICAgICAgICBwcmV2aWV3LXNoYXJlZCkKICAgICAgICAgICAgcmVtb3ZlX3Byb3BlcnR5IHRyYW5zcG9ydAogICAgICAgICAgICBzZXRfcHJvcGVydHkgc2VydmVyLXB1YmxpYy1pcCAiJHB1YmxpY19pcCIKICAgICAgICAgICAgc2V0X3Byb3BlcnR5IHNlcnZlci11ZHAtcG9ydHMgIiRQT1JUIgogICAgICAgICAgICA7OwogICAgZXNhYwogICAgcHJpbnRmICclc1xuJyAiJHByb2ZpbGUiID4gIiRTVEFURV9ESVIvYXBwbGllZC1uYXRpdmUtcHJvZmlsZSIKfQoKcnVuX25hdGl2ZSgpIHsKICAgIHZhbGlkYXRlX3BvcnQgIiRQT1JUIgogICAgdmFsaWRhdGVfYm9vbGVhbiAnQUxMT1dfTElTVCcgIiRDT05GSUdVUkVEX0FMTE9XX0xJU1QiCiAgICB2YWxpZGF0ZV9wbGF5ZXJfbGltaXQgIiRDT05GSUdVUkVEX01BWF9QTEFZRVJTIgogICAgbG9jYWwgcHJvZmlsZSBwdWJsaWNfaXAKICAgIHByb2ZpbGU9IiQoZGV0ZWN0X3Byb2ZpbGUpIgogICAgcHVibGljX2lwPSIkKHJlc29sdmVfcHVibGljX2lwKSIKICAgIHNob3dfbmF0aXZlX3BsYW4gIiRwcm9maWxlIiAiJHB1YmxpY19pcCIKICAgIGlmIFtbICIke1NVUEVSQ09SRVNfQ0hFQ0tfT05MWTotMH0iID09ICIxIiB8fCAiJHsxOi19IiA9PSAiLS1jaGVjayIgXV07IHRoZW4KICAgICAgICBsb2cgImNoZWNrLW9ubHk6IG5vIGZpbGVzIGNoYW5nZWQgYW5kIG5vIHByb2Nlc3Mgc3RhcnRlZCIKICAgICAgICByZXR1cm4KICAgIGZpCiAgICBbWyAteCAiJEJEU19FWEVDVVRBQkxFIiBdXSB8fCBmYXRhbCAiJEJEU19FWEVDVVRBQkxFIGlzIG1pc3Npbmcgb3Igbm90IGV4ZWN1dGFibGUiCiAgICBjb25maWd1cmVfbmF0aXZlICIkcHJvZmlsZSIgIiRwdWJsaWNfaXAiCiAgICBsb2cgInN0YXJ0aW5nIEJEUyBkaXJlY3RseSB3aXRoIFhib3ggYXV0aGVudGljYXRpb24gZW5hYmxlZCIKICAgIGV4ZWMgZW52IExEX0xJQlJBUllfUEFUSD0iJHtMRF9MSUJSQVJZX1BBVEg6LS59IiAiJEJEU19FWEVDVVRBQkxFIgp9CgpydW5fbGVnYWN5KCkgewogICAgbG9jYWwgcHJveHk9IiR7UFJPWFlfRVhFQ1VUQUJMRTotLi9iZWRyb2NrLXByb3h5LWxpbnV4fSIKICAgIGlmIFtbICIke1NVUEVSQ09SRVNfQ0hFQ0tfT05MWTotMH0iID09ICIxIiB8fCAiJHsxOi19IiA9PSAiLS1jaGVjayIgXV07IHRoZW4KICAgICAgICBbWyAteCAiJHByb3h5IiBdXSB8fCBmYXRhbCAiJHByb3h5IGlzIG1pc3Npbmcgb3Igbm90IGV4ZWN1dGFibGUiCiAgICAgICAgbG9nICJtb2RlPWxlZ2FjeV9wcm94eSBleGVjdXRhYmxlPSRwcm94eTsgY2hlY2stb25seTogbm8gcHJvY2VzcyBzdGFydGVkIgogICAgICAgIHJldHVybgogICAgZmkKICAgIFtbIC14ICIkcHJveHkiIF1dIHx8IGZhdGFsICIkcHJveHkgaXMgbWlzc2luZyBvciBub3QgZXhlY3V0YWJsZSIKICAgIGxvZyAic3RhcnRpbmcgZXhwbGljaXQgbGVnYWN5IHByb3h5IHJvbGxiYWNrIG1vZGUiCiAgICBleGVjICIkcHJveHkiCn0KCmNhc2UgIiRNT0RFIiBpbgogICAgbmF0aXZlKSBydW5fbmF0aXZlICIkezE6LX0iIDs7CiAgICBsZWdhY3lfcHJveHkpIHJ1bl9sZWdhY3kgIiR7MTotfSIgOzsKICAgICopIGZhdGFsICJCRURST0NLX05FVFdPUktfTU9ERSBtdXN0IGJlIG5hdGl2ZSBvciBsZWdhY3lfcHJveHksIGdvdDogJE1PREUiIDs7CmVzYWMK\u0027 | base64 -d \u003e supercores-start.sh\nchmod 0755 supercores-start.sh bedrock_server\n\nproxy_url=\u0027https://github.com/CreeperFA/Pterodactyl-Egg-Bedrock-Vanilla-/releases/download/v1.3.0/bedrock-proxy-linux-amd64\u0027\nproxy_sha256=\u0027b7a12ad2f25997c53c599f98a9f772a1a66f744f6ce39efd200852810e0fcb48\u0027\ncurl -fL -o bedrock-proxy-linux.new \"$proxy_url\"\nprintf \u0027%s  %s\\n\u0027 \"$proxy_sha256\" bedrock-proxy-linux.new | sha256sum -c -\nmv -f bedrock-proxy-linux.new bedrock-proxy-linux\nchmod 0755 bedrock-proxy-linux\n\nif [[ ! -f config.json ]]; then\n    config_url=\u0027https://github.com/CreeperFA/Pterodactyl-Egg-Bedrock-Vanilla-/releases/download/v1.3.0/config.example.json\u0027\n    config_sha256=\u00275734b0b3eb167f1c2d61fed2e95ae5ebd19e53e00842b4c4b03845a025d42d35\u0027\n    curl -fL -o config.json \"$config_url\"\n    printf \u0027%s  %s\\n\u0027 \"$config_sha256\" config.json | sha256sum -c -\nfi\n\necho \"Install completed: BDS ${resolved_version} (${channel}); archive SHA-256 ${archive_sha256}\"\necho \"Protected customer files were not removed. Pre-existing managed files are in ${backup_dir}.\"\n",
+                                         "container":  "ghcr.io/ptero-eggs/installers:debian",
+                                         "entrypoint":  "bash"
+                                     }
+                },
+    "variables":  [
+                      {
+                          "name":  "Network mode",
+                          "description":  "Explicit mode selection. Native preserves Xbox authentication; legacy_proxy is rollback only.",
+                          "env_variable":  "BEDROCK_NETWORK_MODE",
+                          "default_value":  "native",
+                          "user_viewable":  true,
+                          "user_editable":  false,
+                          "rules":  "required|string|in:native,legacy_proxy",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "Native compatibility profile",
+                          "description":  "auto inspects the official BDS guide. Forced profiles are for isolated diagnostics only.",
+                          "env_variable":  "NATIVE_PROFILE",
+                          "default_value":  "auto",
+                          "user_viewable":  false,
+                          "user_editable":  false,
+                          "rules":  "required|string|in:auto,stable-shared,preview-shared",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "Public IP",
+                          "description":  "Literal public IPv4/IPv6 receiving the primary allocation. Required when SERVER_IP is 0.0.0.0, private, or otherwise not externally reachable.",
+                          "env_variable":  "PUBLIC_IP",
+                          "default_value":  "",
+                          "user_viewable":  true,
+                          "user_editable":  false,
+                          "rules":  "nullable|ip",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "Bedrock channel",
+                          "description":  "stable is recommended for beta testing; preview is unsupported for production use.",
+                          "env_variable":  "BEDROCK_CHANNEL",
+                          "default_value":  "stable",
+                          "user_viewable":  true,
+                          "user_editable":  false,
+                          "rules":  "required|string|in:stable,preview",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "Bedrock version",
+                          "description":  "The beta pins the tested 1.26.63.1 archive by default; set latest only after validating a newer BDS build.",
+                          "env_variable":  "BEDROCK_VERSION",
+                          "default_value":  "1.26.63.1",
+                          "user_viewable":  true,
+                          "user_editable":  true,
+                          "rules":  "required|string|max:32",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "Server name",
+                          "description":  "Name displayed by Bedrock Dedicated Server.",
+                          "env_variable":  "SERVERNAME",
+                          "default_value":  "Bedrock Dedicated Server",
+                          "user_viewable":  true,
+                          "user_editable":  true,
+                          "rules":  "required|string|max:50",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "Gamemode",
+                          "description":  "Default game mode.",
+                          "env_variable":  "GAMEMODE",
+                          "default_value":  "survival",
+                          "user_viewable":  true,
+                          "user_editable":  true,
+                          "rules":  "required|string|in:survival,creative,adventure",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "Difficulty",
+                          "description":  "World difficulty.",
+                          "env_variable":  "DIFFICULTY",
+                          "default_value":  "easy",
+                          "user_viewable":  true,
+                          "user_editable":  true,
+                          "rules":  "required|string|in:peaceful,easy,normal,hard",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "Allow cheats",
+                          "description":  "Whether commands and cheats are enabled.",
+                          "env_variable":  "CHEATS",
+                          "default_value":  "false",
+                          "user_viewable":  true,
+                          "user_editable":  true,
+                          "rules":  "required|string|in:true,false",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "Max players",
+                          "description":  "Maximum concurrent players.",
+                          "env_variable":  "MAX_PLAYERS",
+                          "default_value":  "10",
+                          "user_viewable":  true,
+                          "user_editable":  true,
+                          "rules":  "required|integer|min:1|max:200",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "Allow list",
+                          "description":  "Require authenticated Xbox players to be present in allowlist.json. Native mode always keeps online-mode=true.",
+                          "env_variable":  "ALLOW_LIST",
+                          "default_value":  "false",
+                          "user_viewable":  true,
+                          "user_editable":  true,
+                          "rules":  "required|string|in:true,false",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "LD library path",
+                          "description":  "Required by the official Linux BDS binary.",
+                          "env_variable":  "LD_LIBRARY_PATH",
+                          "default_value":  ".",
+                          "user_viewable":  false,
+                          "user_editable":  false,
+                          "rules":  "required|string|max:64",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "BDS executable",
+                          "description":  "Official Bedrock Dedicated Server executable.",
+                          "env_variable":  "EXECUTABLE",
+                          "default_value":  "./bedrock_server",
+                          "user_viewable":  false,
+                          "user_editable":  false,
+                          "rules":  "required|string|max:128",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "Legacy backend port",
+                          "description":  "Internal-only port used exclusively by legacy_proxy. Never allocate it publicly.",
+                          "env_variable":  "BACKEND_PORT",
+                          "default_value":  "19140",
+                          "user_viewable":  false,
+                          "user_editable":  false,
+                          "rules":  "required|integer|min:1|max:65535",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "TURN relay URLs",
+                          "description":  "Optional legacy proxy TURN fallback. Values are not true secrets because container processes can read environment variables.",
+                          "env_variable":  "TURN_URLS",
+                          "default_value":  "",
+                          "user_viewable":  false,
+                          "user_editable":  false,
+                          "rules":  "nullable|string|max:1000",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "TURN username",
+                          "description":  "Optional legacy proxy TURN username.",
+                          "env_variable":  "TURN_USERNAME",
+                          "default_value":  "",
+                          "user_viewable":  false,
+                          "user_editable":  false,
+                          "rules":  "nullable|string|max:255",
+                          "field_type":  "text"
+                      },
+                      {
+                          "name":  "TURN password",
+                          "description":  "Optional legacy proxy TURN password; environment variables are not a secure secret store.",
+                          "env_variable":  "TURN_PASSWORD",
+                          "default_value":  "",
+                          "user_viewable":  false,
+                          "user_editable":  false,
+                          "rules":  "nullable|string|max:255",
+                          "field_type":  "text"
+                      }
+                  ]
+}
